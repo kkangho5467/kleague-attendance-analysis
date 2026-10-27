@@ -1,0 +1,26 @@
+# 데이터: 원본·가공 파일은 올리지 않음 (폴더 구조만 유지)
+data/raw/**
+!data/raw/**/
+!data/raw/**/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 엑셀 임시 파일, OS 파일
+~$*
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 에디터
+.vscode/
+.idea/
