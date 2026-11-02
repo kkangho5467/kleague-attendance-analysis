@@ -41,6 +41,7 @@ docs/                  연구 설계 문서
 pip install -r requirements.txt
 python src/collect/kleague_attendance_merge.py   # raw 표 → data/processed/attendance_clean.csv
 python src/collect/build_excluded_matches.py     # home_stadiums.csv 기준 → data/external/excluded_matches.csv
+python src/features/team_form.py                 # 경기 직전 순위·form → data/processed/team_form.csv
 ```
 
 - 작업 환경은 Windows다. 경로는 `pathlib`로 다루고, 스크립트 경로는 `Path(__file__).resolve().parents[...]`로 프로젝트 최상위를 잡는다.
@@ -58,7 +59,8 @@ python src/collect/build_excluded_matches.py     # home_stadiums.csv 기준 → 
 - 더비 목록(`derby_list.csv`)과 제외 경기 목록은 **결과를 보기 전에** 정한다. 분석 결과를 보고 이 파일들을 고치자고 제안하지 않는다.
   - 더비: `tier` 1(위키백과 단독 문서가 있는 더비 10쌍)만 `derby`로 쓴다. tier 2는 검토 기록일 뿐 분석에 쓰지 않는다.
   - 제외: 정규 홈구장이 아닌 곳(공사로 빌린 구장, 중립 구장)에서 열린 홈경기. 자세한 기준은 `data/external/README.md`
-- 분석 범위는 2023~2026시즌, 정규 라운드다. 2020~2022년은 코로나 영향으로 제외한다. 2017년 이전은 유료 관중 집계 전이라 비교하지 않는다.
+- 분석 범위는 2023~2026시즌, 정규 리그 경기다. K리그1 파이널 라운드(34~38R)는 포함하고 `final_round` 더미로 구분한다. 승강 플레이오프·컵대회는 뺀다.
+- 순위·form은 시즌마다 새로 센다. 시즌 첫 경기는 결측이고, form은 직전 최대 5경기의 경기당 평균 승점이다. 2020~2022년은 코로나 영향으로 제외한다. 2017년 이전은 유료 관중 집계 전이라 비교하지 않는다.
 - 결과는 인과가 아니라 연관성으로 표현한다. ("~일수록 관중이 많았다")
 
 ### 모형 (1단계)
@@ -82,9 +84,18 @@ python src/collect/build_excluded_matches.py     # home_stadiums.csv 기준 → 
 | `home_goals`, `away_goals`, `home_result` | 득점, 홈팀 기준 W/D/L |
 | `note` | 사이트 '비고' 열. 주말만 표시하고 공휴일은 표시하지 않는다 |
 
+## 데이터 사전 (`data/processed/team_form.csv`, `match_id`로 붙인다)
+
+| 열 | 뜻 |
+| --- | --- |
+| `home_rank_pre`, `away_rank_pre` | 경기 전날까지 결과로 매긴 리그 순위. 승점 → 다득점 → 득실차 → 다승. 파이널 라운드는 A(1~6)·B(7~12) 그룹 안 순위 |
+| `home_form5`, `away_form5` | 직전 최대 5경기 경기당 평균 승점 (0~3) |
+| `home_games_pre`, `away_games_pre` | 그 시즌 직전까지 치른 경기 수 |
+| `final_round` | K리그1 34~38라운드면 1 |
+
 ## 다음 할 일 (1단계)
 
-1. 경기 일정·결과 데이터로 `home_rank_pre`, `home_form5`, `away_rank_pre` 계산 코드 작성
+1. ~~`home_rank_pre`, `home_form5`, `away_rank_pre` 계산~~ (완료: `src/features/team_form.py`)
 2. `holidays.csv`, `derby_list.csv`를 붙여 `holiday`, `derby`, `home_opener`, `last_home` 변수 생성
 3. 기상청 ASOS 일자료와 경기장-관측소 대응표로 `rain_mm`, `temp_extreme` 생성
 4. `notebooks/`에 기술통계와 모형 1~3 노트북 작성
