@@ -4,10 +4,11 @@ K리그 일정/결과 페이지 복사본 정리 스크립트 (1단계: 킥오�
 사용법
 ------
 1) K리그 홈페이지 > 일정/결과에서 시즌·리그·월을 골라 경기 목록을 드래그해 복사한다.
-2) 메모장에 붙여넣어 data/raw/schedule/ 폴더에 저장한다.
-   - 시즌·리그별로 한 파일 (예: data/raw/schedule/2026_K1.txt)
-   - 여러 달을 한 파일에 이어 붙여도 된다. 확장자가 없어도 읽는다.
+2) 미리 만들어 둔 빈 파일에 붙여넣고 저장한다.
+       data/raw/schedule/K1/2026/05.txt   (리그/시즌/월.txt)
+   - 비어 있는 파일은 건너뛴다. 복사한 달부터 채우면 된다.
    - 연도는 파일 안의 날짜(예: 2026.05.05)에서 읽는다. 맨 앞 날짜가 잘려도(예: 5.02) 괜찮다.
+   - 파일 안 날짜가 폴더·파일 이름(시즌·월)과 다르거나, 다른 리그 경기가 들어 있으면 경고한다.
 3) 프로젝트 최상위 폴더에서 실행:
        python src/collect/kleague_schedule_merge.py
 
@@ -66,8 +67,18 @@ def read_text(path: Path) -> list[str]:
     raise ValueError(f"{path.name}: 인코딩을 알 수 없음")
 
 
+def expected_from_path(path: Path):
+    """K1/2026/05.txt -> ('K리그1', 2026, 5). 이 구조가 아니면 None"""
+    m = re.search(r"(K[12])[/\\](\d{4})[/\\](\d{1,2})\.txt$", path.as_posix())
+    if not m:
+        return None
+    return {"K1": "K리그1", "K2": "K리그2"}[m.group(1)], int(m.group(2)), int(m.group(3))
+
+
 def parse_file(path: Path) -> pd.DataFrame:
     lines = [l.rstrip() for l in read_text(path)]
+    if not any(l.strip() for l in lines):
+        return pd.DataFrame()   # 아직 붙여넣지 않은 빈 파일
     years = [int(m.group(1)) for l in lines if (m := FULL_DATE.match(l.strip()))]
     if not years:
         raise ValueError(f"{path.name}: '2026.05.05' 같은 날짜 줄이 없어 연도를 알 수 없음")
@@ -88,7 +99,7 @@ def parse_file(path: Path) -> pd.DataFrame:
                    "home_team": half(m.group(2)), "away_team": half(m.group(5)),
                    "home_goals": int(m.group(3)), "away_goals": int(m.group(4)),
                    "channels": [], "stadium_short": None, "attendance_sched": None,
-                   "source_file": path.name}
+                   "source_file": path.relative_to(RAW_DIR).as_posix()}
             rows.append(cur)
         elif cur is None:
             continue
@@ -110,28 +121,52 @@ def main() -> None:
     if not files:
         sys.exit(f"'{RAW_DIR.relative_to(ROOT)}' 폴더에 파일이 없습니다.")
 
-    frames = []
+    frames, empty, warnings = [], 0, []
     for p in files:
+        name = p.relative_to(RAW_DIR).as_posix()
         try:
             df = parse_file(p)
-            print(f"  읽음  {p.name:<20} {len(df):>3}경기  ({df['date'].min():%Y-%m-%d} ~ {df['date'].max():%Y-%m-%d})")
-            frames.append(df)
         except ValueError as e:
             print(f"  건너뜀 {e}")
+            continue
+        if df.empty:
+            empty += 1
+            continue
+        print(f"  읽음  {name:<16} {len(df):>3}경기  ({df['date'].min():%Y-%m-%d} ~ {df['date'].max():%Y-%m-%d})")
+        exp = expected_from_path(p)
+        if exp:
+            df["league_expected"] = exp[0]
+            wrong = df[(df["date"].dt.year != exp[1]) | (df["date"].dt.month != exp[2])]
+            if len(wrong):
+                warnings.append(f"{name}: {exp[1]}년 {exp[2]}월 파일인데 다른 달 경기 {len(wrong)}개 "
+                                f"({wrong['date'].min():%Y-%m-%d} ~ {wrong['date'].max():%Y-%m-%d})")
+        frames.append(df)
+    print(f"  (빈 파일 {empty}개는 건너뜀)")
     if not frames:
-        sys.exit("읽을 수 있는 파일이 없습니다.")
+        sys.exit("붙여넣은 파일이 없습니다.")
     sch = pd.concat(frames, ignore_index=True)
 
     sch["kickoff_hour"] = sch["kickoff"].str.split(":").str[0].astype(int)
     sch["broadcast"] = sch["channels"].map(" / ".join)
     sch["tv_terrestrial"] = sch["channels"].map(lambda c: int(any(x in TERRESTRIAL for x in c)))
     sch["match_id"] = [f"{d:%Y%m%d}_{h}_{a}" for d, h, a in zip(sch["date"], sch["home_team"], sch["away_team"])]
+    att = pd.read_csv(ATTENDANCE, encoding="utf-8-sig", parse_dates=["date"],
+                      usecols=["match_id", "date", "league", "attendance", "home_goals", "away_goals"])
+
+    # 중복 제거 전에: 리그 폴더가 틀린 파일, 같은 경기가 두 파일에 있는 경우
+    if "league_expected" in sch:
+        chk = sch.merge(att[["match_id", "league"]], on="match_id", how="inner")
+        other = chk[chk["league_expected"].notna() & (chk["league_expected"] != chk["league"])]
+        for f, g in other.groupby("source_file"):
+            warnings.append(f"{f}: {g['league_expected'].iat[0]} 폴더인데 {g['league'].iat[0]} 경기 {len(g)}개")
+    dup = sch[sch.duplicated("match_id", keep=False)]
+    for files_, g in dup.groupby("match_id")["source_file"].apply(lambda s: " , ".join(sorted(s))).value_counts().items():
+        warnings.append(f"같은 경기가 여러 파일에 있음 ({g}경기): {files_}")
+
     before = len(sch)
     sch = sch.drop_duplicates("match_id")
 
     # 관중 데이터와 대조
-    att = pd.read_csv(ATTENDANCE, encoding="utf-8-sig", parse_dates=["date"],
-                      usecols=["match_id", "date", "league", "attendance", "home_goals", "away_goals"])
     m = sch.merge(att, on="match_id", how="left", suffixes=("", "_att"), indicator=True)
 
     print(f"\n[대조] 일정 {len(sch)}경기 (중복 {before - len(sch)}개 제거)")
@@ -154,6 +189,11 @@ def main() -> None:
     print(f"  복사한 달인데 일정에 빠진 경기: {len(missing)}")
     if len(missing):
         print(missing[["match_id"]].to_string(index=False))
+
+    if warnings:
+        print("\n[확인 필요] 파일 위치와 내용이 맞지 않습니다")
+        for w in warnings:
+            print("  " + w)
 
     cols = ["match_id", "date", "round", "kickoff", "kickoff_hour", "broadcast", "tv_terrestrial",
             "stadium_short", "attendance_sched", "source_file"]
