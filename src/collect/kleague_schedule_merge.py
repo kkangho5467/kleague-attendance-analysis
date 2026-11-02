@@ -45,6 +45,7 @@ FULL_DATE = re.compile(r"^(\d{4})\.(\d{1,2})\.(\d{1,2})$")
 PART_DATE = re.compile(r"^(?:\d{0,4}\.)?(\d{1,2})\.(\d{2})$")
 ROUND = re.compile(r"^R(\d+)$")
 MATCH = re.compile(r"^(\d{1,2}:\d{2})\t(.+?) (\d+):(\d+) (.+)$")
+UPCOMING = re.compile(r"^\d{1,2}:\d{2}\t.+ VS .+$")         # 아직 안 열린 경기 (점수 대신 VS)
 CROWD = re.compile(r"^\[관중수 ([\d,]+)\]")
 STREAMING = {"COUPANGPLAY": "COUPANGPLAY", "쿠팡플레이": "COUPANGPLAY"}
 TERRESTRIAL = {"KBS1", "KBS2", "MBC", "SBS"}
@@ -124,8 +125,12 @@ def parse_file(path: Path) -> pd.DataFrame:
         elif (ch := channel_of(line)) and ch not in cur["channels"]:
             cur["channels"].append(ch)
 
+    upcoming = sum(bool(UPCOMING.match(l.strip(" "))) for l in lines)
     df = pd.DataFrame(rows)
+    df.attrs["upcoming"] = upcoming
     if df.empty:
+        if upcoming:
+            return df   # 아직 열리지 않은 경기만 있는 파일
         raise ValueError(f"{path.name}: 경기 줄을 찾지 못함")
     if df["date"].isna().any():
         raise ValueError(f"{path.name}: 날짜 줄보다 먼저 나온 경기 {df['date'].isna().sum()}개 "
@@ -138,16 +143,18 @@ def main() -> None:
     if not files:
         sys.exit(f"'{RAW_DIR.relative_to(ROOT)}' 폴더에 파일이 없습니다.")
 
-    frames, empty, warnings = [], 0, []
+    frames, empty, upcoming, warnings = [], 0, 0, []
     for p in files:
         name = p.relative_to(RAW_DIR).as_posix()
         try:
             df = parse_file(p)
         except ValueError as e:
-            print(f"  건너뜀 {e}")
+            print(f"  건너뜀 {name}: {e}")
             continue
+        upcoming += df.attrs.get("upcoming", 0)
         if df.empty:
-            empty += 1
+            if not df.attrs.get("upcoming"):
+                empty += 1
             continue
         print(f"  읽음  {name:<16} {len(df):>3}경기  ({df['date'].min():%Y-%m-%d} ~ {df['date'].max():%Y-%m-%d})")
         exp = expected_from_path(p)
@@ -158,7 +165,7 @@ def main() -> None:
                 warnings.append(f"{name}: {exp[1]}년 {exp[2]}월 파일인데 다른 달 경기 {len(wrong)}개 "
                                 f"({wrong['date'].min():%Y-%m-%d} ~ {wrong['date'].max():%Y-%m-%d})")
         frames.append(df)
-    print(f"  (빈 파일 {empty}개는 건너뜀)")
+    print(f"  (빈 파일 {empty}개, 아직 열리지 않은 경기 {upcoming}개는 건너뜀)")
     if not frames:
         sys.exit("붙여넣은 파일이 없습니다.")
     sch = pd.concat(frames, ignore_index=True)
@@ -188,9 +195,16 @@ def main() -> None:
 
     print(f"\n[대조] 일정 {len(sch)}경기 (중복 {before - len(sch)}개 제거)")
     nomatch = m[m["_merge"] == "left_only"]
+    last_att = att["date"].max()
+    later = nomatch[nomatch["date"] > last_att]
+    other = nomatch[nomatch["date"] <= last_att]
     print(f"  관중 데이터에 없는 경기: {len(nomatch)}")
-    if len(nomatch):
-        print(nomatch[["match_id", "source_file"]].to_string(index=False))
+    if len(later):
+        print(f"   - 관중 표 마지막 날({last_att:%Y-%m-%d}) 이후 경기 {len(later)}개 "
+              "-> 관중 표를 다시 복사하면 해결")
+    if len(other):
+        print(f"   - 그 외 {len(other)}개 (승강 플레이오프·슈퍼컵 등 분석 범위 밖이면 정상)")
+        print(other[["match_id", "source_file"]].to_string(index=False))
     ok = m[m["_merge"] == "both"]
     bad = ok[(ok["attendance_sched"] != ok["attendance"]) |
              (ok["home_goals"] != ok["home_goals_att"]) | (ok["away_goals"] != ok["away_goals_att"])]
@@ -198,14 +212,14 @@ def main() -> None:
     if len(bad):
         print(bad[["match_id", "attendance_sched", "attendance", "home_goals", "home_goals_att"]].to_string(index=False))
 
-    # 일정을 복사한 달 가운데 빠진 경기 (리그·월 단위)
-    covered = ok.assign(month=ok["date"].dt.to_period("M"))[["league", "month"]].drop_duplicates()
-    att["month"] = att["date"].dt.to_period("M")
-    expect = att.merge(covered, on=["league", "month"])
-    missing = expect[~expect["match_id"].isin(sch["match_id"])]
-    print(f"  복사한 달인데 일정에 빠진 경기: {len(missing)}")
+    # 관중 데이터에는 있는데 일정(킥오프 시간)이 없는 경기 -> 어느 파일을 채워야 하는지 리그·월별로
+    missing = att[~att["match_id"].isin(sch["match_id"])]
+    print(f"  킥오프 시간이 없는 경기: {len(missing)} / 관중 데이터 {len(att)}경기")
     if len(missing):
-        print(missing[["match_id"]].to_string(index=False))
+        lg = missing["league"].map({"K리그1": "K1", "K리그2": "K2"})
+        where = (lg + "/" + missing["date"].dt.strftime("%Y/%m") + ".txt").value_counts().sort_index()
+        for f, n in where.items():
+            print(f"   - {f}: {n}경기")
 
     if warnings:
         print("\n[확인 필요] 파일 위치와 내용이 맞지 않습니다")
