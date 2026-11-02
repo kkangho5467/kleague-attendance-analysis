@@ -42,7 +42,10 @@ pip install -r requirements.txt
 python src/collect/kleague_attendance_merge.py   # raw 표 → data/processed/attendance_clean.csv
 python src/collect/build_excluded_matches.py     # home_stadiums.csv 기준 → data/external/excluded_matches.csv
 python src/features/team_form.py                 # 경기 직전 순위·form → data/processed/team_form.csv
+python src/features/build_features.py            # 모두 합친 분석용 데이터 → data/processed/features.csv
 ```
+
+- 2026시즌이 끝나면 `build_features.py`의 `INCOMPLETE_SEASONS`에서 2026을 지운다. (그 전에는 `last_home`이 모두 0)
 
 - 작업 환경은 Windows다. 경로는 `pathlib`로 다루고, 스크립트 경로는 `Path(__file__).resolve().parents[...]`로 프로젝트 최상위를 잡는다.
 - 한글이 들어간 CSV는 엑셀에서 깨지지 않도록 `encoding="utf-8-sig"`로 저장한다. 읽을 때는 `utf-8-sig`와 `cp949`를 둘 다 시도한다.
@@ -93,10 +96,24 @@ python src/features/team_form.py                 # 경기 직전 순위·form �
 | `home_games_pre`, `away_games_pre` | 그 시즌 직전까지 치른 경기 수 |
 | `final_round` | K리그1 34~38라운드면 1 |
 
+## 데이터 사전 (`data/processed/features.csv`, 분석용 최종 데이터)
+
+위 두 표의 열에 아래를 더한다.
+
+| 열 | 뜻 |
+| --- | --- |
+| `ln_attendance` | log(관중 수). 종속변수 |
+| `holiday` | 공휴일이면 1 (요일 무관, 근로자의 날 포함) |
+| `day_type` | 평일 / 평일공휴일 / 주말. 주말에 겹친 공휴일은 '주말' |
+| `derby` | tier 1 더비면 1 |
+| `home_opener`, `last_home` | 홈팀의 시즌 첫·마지막 홈경기 |
+| `home_first_game`, `away_first_game` | 그 팀의 시즌 첫 경기면 1. 이때 순위·form은 0으로 채워져 있으니 **반드시 이 더미와 함께 모형에 넣는다** |
+| `excluded` | 제외 경기면 1. 모형에서는 `excluded == 0`만 쓴다 |
+
 ## 다음 할 일 (1단계)
 
 1. ~~`home_rank_pre`, `home_form5`, `away_rank_pre` 계산~~ (완료: `src/features/team_form.py`)
-2. `holidays.csv`, `derby_list.csv`를 붙여 `holiday`, `derby`, `home_opener`, `last_home` 변수 생성
+2. ~~`holiday`, `derby`, `home_opener`, `last_home` 변수 생성~~ (완료: `src/features/build_features.py`)
 3. 기상청 ASOS 일자료와 경기장-관측소 대응표로 `rain_mm`, `temp_extreme` 생성
 4. `notebooks/`에 기술통계와 모형 1~3 노트북 작성
 5. 수원 삼성 사례 분석: `home_form5 × K리그2` 상호작용
