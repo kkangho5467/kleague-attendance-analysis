@@ -31,12 +31,15 @@
 ## 2. 2026시즌이 끝나면 할 것
 
 - [ ] 2026 K리그1·K리그2 관중 표를 다시 복사해 `data/raw/attendance/K1/2026.txt`, `K2/2026-2.txt`에 덮어쓰기
+- [ ] 남은 달 일정을 `data/raw/schedule/K1/2026/`, `K2/2026/`에 붙여넣기 (12월 파일이 필요하면 만들기)
 - [ ] `src/features/build_features.py`의 `INCOMPLETE_SEASONS`에서 2026 지우기 (그래야 `last_home`이 계산됨)
 - [ ] 아래 순서로 다시 실행하고, 출력된 제외 경기 목록 확인하기
   ```
   python src/collect/kleague_attendance_merge.py
+  python src/collect/kleague_schedule_merge.py
   python src/collect/build_excluded_matches.py
   python src/collect/fetch_weather.py
+  python src/collect/fetch_weather_hourly.py
   python src/features/team_form.py
   python src/features/build_features.py
   ```

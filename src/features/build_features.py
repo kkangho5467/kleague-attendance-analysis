@@ -5,7 +5,10 @@
 ------
 프로젝트 최상위 폴더에서 아래 순서로 실행한다.
     python src/collect/kleague_attendance_merge.py
+    python src/collect/kleague_schedule_merge.py
     python src/collect/build_excluded_matches.py
+    python src/collect/fetch_weather.py
+    python src/collect/fetch_weather_hourly.py
     python src/features/team_form.py
     python src/features/build_features.py
 

@@ -43,7 +43,8 @@ pip install -r requirements.txt
 python src/collect/kleague_attendance_merge.py   # raw 표 → data/processed/attendance_clean.csv
 python src/collect/kleague_schedule_merge.py      # 일정 페이지 복사본 → data/processed/schedule_clean.csv (킥오프·라운드·중계)
 python src/collect/build_excluded_matches.py     # home_stadiums.csv 기준 → data/external/excluded_matches.csv
-python src/collect/fetch_weather.py              # 기상청 ASOS API → data/raw/weather/asos_daily.csv (새 날짜만)
+python src/collect/fetch_weather.py              # 기상청 ASOS 일자료 API → data/raw/weather/asos_daily.csv (새 날짜만)
+python src/collect/fetch_weather_hourly.py       # 기상청 ASOS 시간자료 API → data/raw/weather/asos_hourly.csv (새 날짜만, 11~23시)
 python src/features/team_form.py                 # 경기 직전 순위·form → data/processed/team_form.csv
 python src/features/build_features.py            # 모두 합친 분석용 데이터 → data/processed/features.csv
 ```
@@ -76,7 +77,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 - 구단 고정효과와 시즌 고정효과를 넣은 OLS를 쓴다. (`statsmodels`)
 - 표준오차는 구단별 군집 표준오차다.
 - 모형은 단계적으로 쌓는다. 모형 1은 일정·날씨, 모형 2는 여기에 경기력, 모형 3은 여기에 상대팀·특별 경기를 더한다.
-- 모형 1의 일정 변수에 `night`를 넣는다.
+- 모형 1의 일정 변수에 `night`를 넣는다. 날씨는 경기 시간대 기준 `rain`, `hot`, `cold`를 넣는다. (하루 기준 `_day` 변수는 기술통계용)
 - 모형 3의 상대팀 인기도는 `ln_away_fans_pre`(+ `away_fans_missing`)로 넣는다.
 - VIF로 다중공선성을 확인한다.
 - 민감도 분석(결과가 기준에 따라 흔들리지 않는지 확인)은 미리 정한 두 가지만 한다.
@@ -120,11 +121,13 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 | `home_first_game`, `away_first_game` | 그 팀의 시즌 첫 경기면 1. 이때 순위·form은 0으로 채워져 있으니 **반드시 이 더미와 함께 모형에 넣는다** |
 | `excluded` | 제외 경기면 1. 모형에서는 `excluded == 0`만 쓴다 |
 | `sellout_proxy` | 매진으로 보이는 경기면 1. 관중 수로 만든 기준이라 **민감도 분석 1에서 빼는 용도로만** 쓴다 |
-| `rain_mm`, `rain` | 경기장 근처 ASOS 관측소 일강수량, 1mm 이상이면 `rain`=1 (**모형에는 `rain`**) |
-| `max_ta`, `min_ta`, `hot`, `cold` | 일 최고·최저기온. `hot`=최고 33℃ 이상(폭염 기준), `cold`=최저 0℃ 이하 |
+| `rain_match_mm`, `ta_kickoff` | **경기 시간대 날씨 (본 분석)**. 경기장 근처 ASOS 관측소 시간자료로, 킥오프 1시간 전~2시간 후(4시간) 강수량 합과 킥오프 시각(정시 기준, 19:30이면 19시) 기온 |
+| `rain`, `hot`, `cold` | **모형에 넣는 날씨**. `rain`=`rain_match_mm` 1mm 이상, `hot`=`ta_kickoff` 30℃ 이상, `cold`=`ta_kickoff` 5℃ 이하 |
+| `rain_mm`, `max_ta`, `min_ta` | 하루 전체 날씨 (일자료, 기술통계용). 일강수량, 일 최고·최저기온 |
+| `rain_day`, `hot_day`, `cold_day` | 하루 기준 판정 (기술통계용). 일강수량 1mm 이상 / 최고 33℃ 이상 / 최저 0℃ 이하 |
 | `kickoff`, `kickoff_hour`, `night` | 킥오프 시각, 18시 이후 시작이면 `night`=1. 평일 경기는 모두 저녁이라 `night`는 주말·공휴일 안에서의 저녁 vs 낮 차이를 잡는다 |
 | `round`, `tv_terrestrial` | 라운드, 지상파(KBS·MBC·SBS) 중계면 1 (18경기뿐이라 기술통계용) |
-| `rain_alt`, `hot_alt`, `cold_alt` | 대체 관측소(`stadium_station.csv`의 `alt_stn_id`) 기준 날씨. 민감도 분석에만 쓴다 |
+| `rain_alt`, `hot_alt`, `cold_alt` | 대체 관측소(`stadium_station.csv`의 `alt_stn_id`) 기준 경기 시간대 날씨. `rain`·`hot`·`cold`와 같은 기준. 민감도 분석에만 쓴다 |
 | `away_fans_pre` | 원정팀의 직전 최대 5번 원정경기 평균 원정 관중. 시즌을 넘어 이어서 센다. 원정석이 꽉 찬 경기(`away_fans_capped`=1)는 평균에서 뺀다. 원정석 관중만 집계되는 한계는 `docs/limitations.md` |
 | `ln_away_fans_pre`, `away_fans_missing` | log(1 + `away_fans_pre`). 데이터상 첫 원정경기는 0으로 채우고 `away_fans_missing`=1 (**반드시 함께 넣는다**) |
 
@@ -132,7 +135,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 
 1. ~~`home_rank_pre`, `home_form5`, `away_rank_pre` 계산~~ (완료: `src/features/team_form.py`)
 2. ~~`holiday`, `derby`, `home_opener`, `last_home` 변수 생성~~ (완료: `src/features/build_features.py`)
-3. ~~날씨 변수 `rain`, `hot`, `cold` 생성~~ (완료: `src/collect/fetch_weather.py`, 대응표 `data/external/stadium_station.csv`)
+3. ~~날씨 변수 `rain`, `hot`, `cold` 생성~~ (완료: 경기 시간대 `src/collect/fetch_weather_hourly.py`, 하루 기준 `src/collect/fetch_weather.py`, 대응표 `data/external/stadium_station.csv`)
 4. `notebooks/`에 기술통계와 모형 1~3 노트북 작성
 5. 수원 삼성 사례 분석: `home_form5 × K리그2` 상호작용
 
