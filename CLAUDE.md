@@ -75,6 +75,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 ### 모형 (1단계)
 - 종속변수는 `log(attendance)`다.
 - 구단 고정효과와 시즌 고정효과를 넣은 OLS를 쓴다. (`statsmodels`)
+- 모든 모형에 리그 더미(`K리그1`=1)와 월 더미를 통제변수로 넣는다. 승강한 구단의 리그 변화, 시즌 중 시기 효과를 따로 잡기 위해서다. (2026-11-02 확정)
 - 표준오차는 구단별 군집 표준오차다.
 - 모형은 단계적으로 쌓는다. 모형 1은 일정·날씨, 모형 2는 여기에 경기력, 모형 3은 여기에 상대팀·특별 경기를 더한다.
 - 모형 1의 일정 변수에 `night`를 넣는다. 날씨는 경기 시간대 기준 `rain`, `hot`, `cold`를 넣는다. (하루 기준 `_day` 변수는 기술통계용)
@@ -136,7 +137,8 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 1. ~~`home_rank_pre`, `home_form5`, `away_rank_pre` 계산~~ (완료: `src/features/team_form.py`)
 2. ~~`holiday`, `derby`, `home_opener`, `last_home` 변수 생성~~ (완료: `src/features/build_features.py`)
 3. ~~날씨 변수 `rain`, `hot`, `cold` 생성~~ (완료: 경기 시간대 `src/collect/fetch_weather_hourly.py`, 하루 기준 `src/collect/fetch_weather.py`, 대응표 `data/external/stadium_station.csv`)
-4. `notebooks/`에 기술통계와 모형 1~3 노트북 작성
+4. ~~기술통계와 모형 1~3 노트북 작성~~ (완료: `notebooks/01_descriptive.ipynb`, `notebooks/02_models.ipynb`, 결과 `reports/`)
+   - 노트북 커널은 `Python (kleague .venv)`를 쓴다. (`python -m ipykernel install --user --name kleague`로 등록)
 5. 수원 삼성 사례 분석: `home_form5 × K리그2` 상호작용
 
 ## 작업 방식
