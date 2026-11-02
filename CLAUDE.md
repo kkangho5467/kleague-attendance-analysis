@@ -27,6 +27,7 @@ K리그 홈경기 관중 수를 움직이는 요인을 공개 데이터로 분�
 
 ```
 data/raw/attendance/   K리그 관중 현황에서 손으로 복사한 원본 표 (.txt/.csv/.xlsx)
+data/raw/schedule/     K리그 일정/결과 페이지 복사본 (시즌·리그별 한 파일, 여러 달 이어 붙임)
 data/external/         직접 정하는 목록: derby_list.csv, excluded_matches.csv, holidays.csv
 data/processed/        스크립트 결과물 (attendance_clean.csv 등)
 src/collect/           수집·정리 스크립트
@@ -40,6 +41,7 @@ docs/                  연구 설계 문서
 ```bash
 pip install -r requirements.txt
 python src/collect/kleague_attendance_merge.py   # raw 표 → data/processed/attendance_clean.csv
+python src/collect/kleague_schedule_merge.py      # 일정 페이지 복사본 → data/processed/schedule_clean.csv (킥오프·라운드·중계)
 python src/collect/build_excluded_matches.py     # home_stadiums.csv 기준 → data/external/excluded_matches.csv
 python src/collect/fetch_weather.py              # 기상청 ASOS API → data/raw/weather/asos_daily.csv (새 날짜만)
 python src/features/team_form.py                 # 경기 직전 순위·form → data/processed/team_form.csv
