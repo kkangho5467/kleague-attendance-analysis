@@ -112,7 +112,8 @@ kleague-attendance-analysis/
 │   └── features/            # 경기 직전 순위·성적, 분석용 변수 만들기
 ├── notebooks/               # 기술통계, 회귀 모형, 수원 사례 분석
 ├── reports/                 # 결과 그림, 모형 3 계수표
-├── docs/                    # 분석 한계, 검토 체크리스트, 연구 설계 요약
+├── docs/                    # 분석 한계, 검토 체크리스트, 사례 수집 양식, 연구 설계 요약
+├── research/                # 자료수집: 마케팅 제안의 근거가 될 논문·다른 리그 사례
 └── requirements.txt
 ```
 

@@ -33,7 +33,8 @@ data/processed/        스크립트 결과물 (attendance_clean.csv 등)
 src/collect/           수집·정리 스크립트
 notebooks/             탐색·분석 노트북
 reports/figures/       결과 그림
-docs/                  연구 설계 문서
+docs/                  연구 설계 문서, 한계, 체크리스트, 사례 수집 양식
+research/              자료수집: 논문(papers/), 다른 리그 사례(cases/). 목록은 research/README.md
 ```
 
 ## 실행
