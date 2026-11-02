@@ -30,6 +30,11 @@
                      그 팀의 시즌 첫 경기면 1. 이때 순위·form은 0으로 채운다.
                      0은 실제 값이 아니므로 반드시 이 더미와 함께 모형에 넣는다.
 - excluded           제외 경기 목록에 있으면 1
+- kickoff, kickoff_hour  킥오프 시각 (일정 페이지)
+- night              18시 이후 시작이면 1. 평일 경기는 모두 저녁이라, night 계수는 사실상
+                     '주말·공휴일 저녁 경기 vs 낮 경기' 차이를 보여 준다
+- round, tv_terrestrial  라운드, 지상파(KBS·MBC·SBS) 중계면 1
+  일정 입력: data/processed/schedule_clean.csv (src/collect/kleague_schedule_merge.py가 만듦)
 - rain_mm            경기장 근처 ASOS 관측소 일강수량 (빈칸 = 비 안 옴 = 0)
 - rain               일강수량 1mm 이상이면 1
 - max_ta, min_ta     일 최고·최저기온
@@ -56,6 +61,7 @@ OUT_FILE = PROC / "features.csv"
 
 # 아직 끝나지 않은 시즌: 마지막 홈경기를 알 수 없다. 시즌이 끝나면 여기서 지운다.
 INCOMPLETE_SEASONS = {2026}
+NIGHT_FROM = 18   # 이 시각(시) 이후 킥오프면 야간 경기
 
 
 def read(path: Path, **kw) -> pd.DataFrame:
@@ -73,6 +79,7 @@ def main() -> None:
     holidays = read(EXT / "holidays.csv", parse_dates=["date"])
     derbies = read(EXT / "derby_list.csv")
     excluded = read(EXT / "excluded_matches.csv")
+    schedule = read(PROC / "schedule_clean.csv")
     stations = read(EXT / "stadium_station.csv")
     weather = read(ROOT / "data" / "raw" / "weather" / "asos_daily.csv", parse_dates=["date"])
 
@@ -102,6 +109,11 @@ def main() -> None:
         df.loc[first, [f"{side}_rank_pre", f"{side}_form5"]] = 0
 
     df["excluded"] = df["match_id"].isin(excluded["match_id"]).astype(int)
+
+    # 킥오프 시간·야간 경기·중계 (일정 페이지). 일정이 없는 경기는 결측
+    df = df.merge(schedule[["match_id", "kickoff", "kickoff_hour", "round", "tv_terrestrial"]],
+                  on="match_id", how="left", validate="one_to_one")
+    df["night"] = (df["kickoff_hour"] >= NIGHT_FROM).astype("Int64").where(df["kickoff_hour"].notna())
 
     # 날씨: 경기장 → 관측소 → 그날 자료. 아직 받지 못한 날은 결측으로 남는다.
     df = df.merge(stations[["stadium", "stn_id"]], on="stadium", how="left", validate="many_to_one")
@@ -135,6 +147,7 @@ def main() -> None:
         "home_first_game", "away_first_game", "home_games_pre", "away_games_pre",
         "derby", "home_opener", "last_home", "final_round",
         "away_fans_pre", "ln_away_fans_pre", "away_fans_missing",
+        "kickoff", "kickoff_hour", "night", "round", "tv_terrestrial",
         "rain_mm", "rain", "max_ta", "min_ta", "hot", "cold", "rain_alt", "hot_alt", "cold_alt",
         "excluded",
     ]
@@ -143,9 +156,12 @@ def main() -> None:
 
     print(f"저장 완료: {OUT_FILE.relative_to(ROOT)}  ({len(out)}경기, 제외 {out['excluded'].sum()}경기)")
     print("\n[변수별 해당 경기 수]")
-    for c in ["holiday", "derby", "home_opener", "last_home", "final_round", "home_first_game", "away_first_game",
+    for c in ["night", "tv_terrestrial", "holiday", "derby", "home_opener", "last_home", "final_round", "home_first_game", "away_first_game",
               "rain", "hot", "cold", "rain_alt", "hot_alt", "cold_alt", "away_fans_missing"]:
         print(f"  {c:<16} {out[c].sum():>4}")
+    n_kick = out["kickoff"].isna().sum()
+    if n_kick:
+        print(f"  킥오프 결측 {n_kick}경기 -> python src/collect/kleague_schedule_merge.py 결과를 확인하세요")
     n_missing = out["max_ta"].isna().sum()
     if n_missing:
         print(f"  날씨 결측 {n_missing}경기 -> python src/collect/fetch_weather.py를 다시 실행하세요")

@@ -76,6 +76,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 - 구단 고정효과와 시즌 고정효과를 넣은 OLS를 쓴다. (`statsmodels`)
 - 표준오차는 구단별 군집 표준오차다.
 - 모형은 단계적으로 쌓는다. 모형 1은 일정·날씨, 모형 2는 여기에 경기력, 모형 3은 여기에 상대팀·특별 경기를 더한다.
+- 모형 1의 일정 변수에 `night`를 넣는다.
 - 모형 3의 상대팀 인기도는 `ln_away_fans_pre`(+ `away_fans_missing`)로 넣는다.
 - VIF로 다중공선성을 확인한다.
 - 민감도 분석(결과가 기준에 따라 흔들리지 않는지 확인)은 미리 정한 두 가지만 한다.
@@ -120,6 +121,8 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 | `excluded` | 제외 경기면 1. 모형에서는 `excluded == 0`만 쓴다 |
 | `rain_mm`, `rain` | 경기장 근처 ASOS 관측소 일강수량, 1mm 이상이면 `rain`=1 (**모형에는 `rain`**) |
 | `max_ta`, `min_ta`, `hot`, `cold` | 일 최고·최저기온. `hot`=최고 33℃ 이상(폭염 기준), `cold`=최저 0℃ 이하 |
+| `kickoff`, `kickoff_hour`, `night` | 킥오프 시각, 18시 이후 시작이면 `night`=1. 평일 경기는 모두 저녁이라 `night`는 주말·공휴일 안에서의 저녁 vs 낮 차이를 잡는다 |
+| `round`, `tv_terrestrial` | 라운드, 지상파(KBS·MBC·SBS) 중계면 1 (18경기뿐이라 기술통계용) |
 | `rain_alt`, `hot_alt`, `cold_alt` | 대체 관측소(`stadium_station.csv`의 `alt_stn_id`) 기준 날씨. 민감도 분석에만 쓴다 |
 | `away_fans_pre` | 원정팀의 직전 최대 5번 원정경기 평균 원정 관중. 시즌을 넘어 이어서 센다. 원정석이 꽉 찬 경기(`away_fans_capped`=1)는 평균에서 뺀다. 원정석 관중만 집계되는 한계는 `docs/limitations.md` |
 | `ln_away_fans_pre`, `away_fans_missing` | log(1 + `away_fans_pre`). 데이터상 첫 원정경기는 0으로 채우고 `away_fans_missing`=1 (**반드시 함께 넣는다**) |
