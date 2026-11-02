@@ -18,6 +18,8 @@
     final_round                    K리그1 34~38라운드(파이널 라운드)면 1
     away_fans_pre                  원정팀의 직전 최대 5번 원정경기 평균 원정 관중 수
                                    (상대팀 인기도. 시즌을 넘어 이어서 센다. 데이터상 첫 원정경기는 결측)
+                                   원정석이 꽉 찬 경기는 평균에서 뺀다. 한계는 docs/limitations.md
+    away_fans_capped               그 경기에서 원정석이 꽉 찬 것으로 보이면 1 (평균 계산에서 빠진 경기)
 
 규칙
 - 같은 날 열린 다른 경기 결과는 쓰지 않는다. 관중이 경기장에 올 때 알 수 없던 정보이기 때문이다.
@@ -39,6 +41,8 @@ OUT_FILE = ROOT / "data" / "processed" / "team_form.csv"
 FORM_N = 5          # 최근 몇 경기를 볼지
 SPLIT_AFTER = 33    # K리그1 스플릿 전 라운드 수
 SPLIT_TOP = 6       # 파이널A 팀 수
+CAP_RATIO = 0.95    # 경기장 최대 원정 관중의 몇 % 이상이면 원정석이 찼다고 볼지
+CAP_MIN_GAMES = 5   # 그런 경기가 몇 번 이상 나와야 원정석 상한이 있는 경기장으로 볼지
 
 
 def to_long(df: pd.DataFrame) -> pd.DataFrame:
@@ -106,10 +110,30 @@ def away_fans_before_each_match(df: pd.DataFrame) -> pd.DataFrame:
     """원정팀이 직전 원정경기들에서 데려온 원정 관중 평균.
     그 경기의 원정 관중은 관중 수의 일부라 그대로 쓰면 결과로 결과를 설명하게 된다.
     그래서 경기 전에 알 수 있는 '지난 원정경기들'의 값만 쓴다."""
-    a = df[["match_id", "away_team", "date", "away_fans_raw"]].sort_values(["away_team", "date"])
-    a["away_fans_pre"] = a.groupby("away_team")["away_fans_raw"].transform(
-        lambda s: s.shift(1).rolling(FORM_N, min_periods=1).mean())
-    return a[["match_id", "away_fans_pre"]]
+    a = df[["match_id", "away_team", "date", "stadium", "away_fans_raw"]].sort_values(["away_team", "date"])
+    a["away_fans_capped"] = capped_games(a)
+
+    # 원정석이 꽉 찬 경기는 실제 원정 팬 수가 아니라 원정석 정원이므로 평균에서 뺀다.
+    # 빼고 남은 경기 중 직전 최대 5경기를 본다.
+    usable = a["away_fans_raw"].where(a["away_fans_capped"] == 0)
+
+    def last_n_mean(s: pd.Series) -> pd.Series:
+        prev = s.shift(1)
+        return prev.dropna().rolling(FORM_N, min_periods=1).mean().reindex(prev.index).ffill()
+
+    a["away_fans_pre"] = usable.groupby(a["away_team"]).transform(last_n_mean)
+    return a[["match_id", "away_fans_pre", "away_fans_capped"]]
+
+
+def capped_games(a: pd.DataFrame) -> pd.Series:
+    """원정석이 꽉 찬 것으로 보이는 경기 표시 (1/0).
+    기준: 경기장 최대 원정 관중의 95% 이상인 경기가 5번 이상 나온 경기장은 원정석 상한이 있다고 보고,
+    그 경기장에서 최대치의 95% 이상인 경기를 '꽉 참'으로 본다.
+    (원정석이 넉넉한 경기장은 최대치 근처에 경기가 몰리지 않으므로 해당하지 않는다)"""
+    stadium_max = a.groupby("stadium")["away_fans_raw"].transform("max")
+    near_max = a["away_fans_raw"] >= CAP_RATIO * stadium_max
+    has_cap = near_max.groupby(a["stadium"]).transform("sum") >= CAP_MIN_GAMES
+    return (near_max & has_cap).astype(int)
 
 
 def main() -> None:
@@ -141,7 +165,7 @@ def main() -> None:
     out["away_form5"] = out["away_form5"].round(3)
 
     cols = ["match_id", "home_rank_pre", "away_rank_pre", "home_form5", "away_form5",
-            "home_games_pre", "away_games_pre", "final_round", "away_fans_pre"]
+            "home_games_pre", "away_games_pre", "final_round", "away_fans_pre", "away_fans_capped"]
     out[cols].to_csv(OUT_FILE, index=False, encoding="utf-8-sig")
 
     print(f"저장 완료: {OUT_FILE.relative_to(ROOT)}  ({len(out)}경기)")

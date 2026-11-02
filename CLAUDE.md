@@ -66,6 +66,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
   - 제외: 정규 홈구장이 아닌 곳(공사로 빌린 구장, 중립 구장)에서 열린 홈경기. 자세한 기준은 `data/external/README.md`
 - 분석 범위는 2023~2026시즌, 정규 리그 경기다. K리그1 파이널 라운드(34~38R)는 포함하고 `final_round` 더미로 구분한다. 승강 플레이오프·컵대회는 뺀다.
 - 순위·form은 시즌마다 새로 센다. 시즌 첫 경기는 결측이고, form은 직전 최대 5경기의 경기당 평균 승점이다. 2020~2022년은 코로나 영향으로 제외한다. 2017년 이전은 유료 관중 집계 전이라 비교하지 않는다.
+- 측정의 한계는 `docs/limitations.md`에 모은다. 새 한계를 발견하면 여기에 추가한다.
 - 결과는 인과가 아니라 연관성으로 표현한다. ("~일수록 관중이 많았다")
 
 ### 모형 (1단계)
@@ -118,7 +119,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 | `rain_mm`, `rain` | 경기장 근처 ASOS 관측소 일강수량, 1mm 이상이면 `rain`=1 (**모형에는 `rain`**) |
 | `max_ta`, `min_ta`, `hot`, `cold` | 일 최고·최저기온. `hot`=최고 33℃ 이상(폭염 기준), `cold`=최저 0℃ 이하 |
 | `rain_alt`, `hot_alt`, `cold_alt` | 대체 관측소(`stadium_station.csv`의 `alt_stn_id`) 기준 날씨. 민감도 분석에만 쓴다 |
-| `away_fans_pre` | 원정팀의 직전 최대 5번 원정경기 평균 원정 관중. 시즌을 넘어 이어서 센다 |
+| `away_fans_pre` | 원정팀의 직전 최대 5번 원정경기 평균 원정 관중. 시즌을 넘어 이어서 센다. 원정석이 꽉 찬 경기(`away_fans_capped`=1)는 평균에서 뺀다. 원정석 관중만 집계되는 한계는 `docs/limitations.md` |
 | `ln_away_fans_pre`, `away_fans_missing` | log(1 + `away_fans_pre`). 데이터상 첫 원정경기는 0으로 채우고 `away_fans_missing`=1 (**반드시 함께 넣는다**) |
 
 ## 다음 할 일 (1단계)
