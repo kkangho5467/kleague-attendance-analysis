@@ -30,22 +30,32 @@
                      그 팀의 시즌 첫 경기면 1. 이때 순위·form은 0으로 채운다.
                      0은 실제 값이 아니므로 반드시 이 더미와 함께 모형에 넣는다.
 - excluded           제외 경기 목록에 있으면 1
+- sellout_proxy      매진으로 보이는 경기면 1 (민감도 분석 1에서 뺀다)
+                     경기장·시즌별 최다 관중의 95% 이상인 경기가 5번 이상 나오면 그 경기장·시즌에
+                     관중 상한(매진)이 있다고 보고, 그 경기들을 표시한다. 경기마다 여는 구역이 달라
+                     실제 판매 좌석 수를 알 수 없어서 쓰는 대체 기준이다. 관중 수로 만든 기준이므로
+                     본 분석에는 쓰지 않는다.
 - kickoff, kickoff_hour  킥오프 시각 (일정 페이지)
 - night              18시 이후 시작이면 1. 평일 경기는 모두 저녁이라, night 계수는 사실상
                      '주말·공휴일 저녁 경기 vs 낮 경기' 차이를 보여 준다
 - round, tv_terrestrial  라운드, 지상파(KBS·MBC·SBS) 중계면 1
   일정 입력: data/processed/schedule_clean.csv (src/collect/kleague_schedule_merge.py가 만듦)
-- rain_mm            경기장 근처 ASOS 관측소 일강수량 (빈칸 = 비 안 옴 = 0)
-- rain               일강수량 1mm 이상이면 1
-- max_ta, min_ta     일 최고·최저기온
-- hot                일 최고기온 33℃ 이상이면 1 (기상청 폭염 기준)
-- cold               일 최저기온 0℃ 이하면 1 (영하)
+[경기 시간대 날씨 = 본 분석] 시간자료, 킥오프 1시간 전 ~ 2시간 후 (예: 19:30 킥오프 -> 18~21시)
+- rain_match_mm      그 4시간 강수량 합 (빈칸 = 비 안 옴 = 0)
+- ta_kickoff         킥오프 시각(정시 기준, 19:30이면 19시)의 기온
+- rain               rain_match_mm 1mm 이상이면 1
+- hot                ta_kickoff 30℃ 이상이면 1
+- cold               ta_kickoff 5℃ 이하면 1
 - rain_alt, hot_alt, cold_alt
                      대체 관측소(alt_stn_id) 기준 같은 변수. 모형 3 민감도 분석용
+[하루 전체 날씨 = 기술통계용] 일자료
+- rain_mm, max_ta, min_ta  일강수량, 일 최고·최저기온
+- rain_day, hot_day, cold_day  일강수량 1mm 이상 / 최고 33℃ 이상 / 최저 0℃ 이하
 - ln_away_fans_pre   log(1 + 원정팀의 직전 5번 원정경기 평균 원정 관중). 상대팀 인기도
 - away_fans_missing  원정팀의 데이터상 첫 원정경기면 1. 이때 ln_away_fans_pre는 0으로 채운다.
                      (first_game 더미처럼 반드시 함께 모형에 넣는다)
   날씨 입력: data/raw/weather/asos_daily.csv (src/collect/fetch_weather.py가 만듦),
+            data/raw/weather/asos_hourly.csv (src/collect/fetch_weather_hourly.py가 만듦),
             data/external/stadium_station.csv
 """
 
@@ -62,6 +72,32 @@ OUT_FILE = PROC / "features.csv"
 # 아직 끝나지 않은 시즌: 마지막 홈경기를 알 수 없다. 시즌이 끝나면 여기서 지운다.
 INCOMPLETE_SEASONS = {2026}
 NIGHT_FROM = 18   # 이 시각(시) 이후 킥오프면 야간 경기
+# 경기 시간대 날씨 기준 (2026-11-02 확정)
+WINDOW_BEFORE, WINDOW_AFTER = 1, 2   # 킥오프 몇 시간 전 ~ 몇 시간 후
+RAIN_MM = 1.0                        # 그 시간 강수량 합이 이 값 이상이면 비
+HOT_TA = 30.0                        # 킥오프 기온이 이 값 이상이면 더위
+COLD_TA = 5.0                        # 킥오프 기온이 이 값 이하면 추위
+# 매진 대체 기준 (2026-11-02 확정)
+SELLOUT_RATIO = 0.95                 # 경기장·시즌 최다 관중의 몇 % 이상이면 꽉 찼다고 볼지
+SELLOUT_MIN_GAMES = 5                # 그런 경기가 몇 번 이상이어야 상한이 있다고 볼지
+
+
+def match_weather(m: pd.DataFrame, hourly: pd.DataFrame) -> pd.DataFrame:
+    """경기마다 킥오프 전후 시간대의 강수량 합과 킥오프 기온을 구한다.
+    m: match_id, stn, date, kickoff_hour / 반환: match_id, rain_match_mm, ta_kickoff"""
+    h = hourly.assign(date=hourly["tm"].dt.normalize(), hour=hourly["tm"].dt.hour)[["stn_id", "date", "hour", "ta", "rn"]]
+    rows = []
+    for off in range(-WINDOW_BEFORE, WINDOW_AFTER + 1):
+        x = m.assign(hour=m["kickoff_hour"] + off, offset=off)
+        rows.append(x.merge(h, left_on=["stn", "date", "hour"], right_on=["stn_id", "date", "hour"], how="left"))
+    x = pd.concat(rows)
+    g = x.groupby("match_id")
+    out = pd.DataFrame({
+        # 시간자료가 한 시간이라도 있으면 빈칸 강수량은 0으로 본다
+        "rain_match_mm": g["rn"].apply(lambda s: s.fillna(0).sum()).where(g["ta"].count() > 0),
+        "ta_kickoff": x[x["offset"] == 0].set_index("match_id")["ta"],
+    }).reset_index().rename(columns={"index": "match_id"})
+    return out
 
 
 def read(path: Path, **kw) -> pd.DataFrame:
@@ -82,6 +118,7 @@ def main() -> None:
     schedule = read(PROC / "schedule_clean.csv")
     stations = read(EXT / "stadium_station.csv")
     weather = read(ROOT / "data" / "raw" / "weather" / "asos_daily.csv", parse_dates=["date"])
+    hourly = read(ROOT / "data" / "raw" / "weather" / "asos_hourly.csv", parse_dates=["tm"])
 
     df = df.merge(form, on="match_id", how="left", validate="one_to_one")
     df["ln_attendance"] = np.log(df["attendance"])
@@ -110,30 +147,36 @@ def main() -> None:
 
     df["excluded"] = df["match_id"].isin(excluded["match_id"]).astype(int)
 
+    # 매진 대체 기준: 관중 수가 같은 상한 근처에서 반복해서 멈추는 경기장·시즌
+    stadium_season = df.groupby(["stadium", "season"])["attendance"]
+    near_max = df["attendance"] >= SELLOUT_RATIO * stadium_season.transform("max")
+    has_cap = near_max.groupby([df["stadium"], df["season"]]).transform("sum") >= SELLOUT_MIN_GAMES
+    df["sellout_proxy"] = (near_max & has_cap).astype(int)
+
     # 킥오프 시간·야간 경기·중계 (일정 페이지). 일정이 없는 경기는 결측
     df = df.merge(schedule[["match_id", "kickoff", "kickoff_hour", "round", "tv_terrestrial"]],
                   on="match_id", how="left", validate="one_to_one")
     df["night"] = (df["kickoff_hour"] >= NIGHT_FROM).astype("Int64").where(df["kickoff_hour"].notna())
 
-    # 날씨: 경기장 → 관측소 → 그날 자료. 아직 받지 못한 날은 결측으로 남는다.
-    df = df.merge(stations[["stadium", "stn_id"]], on="stadium", how="left", validate="many_to_one")
+    # 하루 전체 날씨 (일자료, 기술통계용). 아직 받지 못한 날은 결측으로 남는다.
+    df = df.merge(stations[["stadium", "stn_id", "alt_stn_id"]], on="stadium", how="left", validate="many_to_one")
     df = df.merge(weather[["stn_id", "date", "sum_rn", "max_ta", "min_ta"]],
                   on=["stn_id", "date"], how="left", validate="many_to_one")
-    has_weather = df["max_ta"].notna()
-    df["rain_mm"] = df["sum_rn"].where(~has_weather, df["sum_rn"].fillna(0))
-    df["rain"] = (df["rain_mm"] >= 1).astype("Int64").where(has_weather)
-    df["hot"] = (df["max_ta"] >= 33).astype("Int64").where(has_weather)
-    df["cold"] = (df["min_ta"] <= 0).astype("Int64").where(has_weather)
+    has_day = df["max_ta"].notna()
+    df["rain_mm"] = df["sum_rn"].where(~has_day, df["sum_rn"].fillna(0))
+    df["rain_day"] = (df["rain_mm"] >= 1).astype("Int64").where(has_day)
+    df["hot_day"] = (df["max_ta"] >= 33).astype("Int64").where(has_day)
+    df["cold_day"] = (df["min_ta"] <= 0).astype("Int64").where(has_day)
 
-    # 민감도 분석용: 대체 관측소 기준 날씨
-    alt = weather[["stn_id", "date", "sum_rn", "max_ta", "min_ta"]].rename(
-        columns={"stn_id": "alt_stn_id", "sum_rn": "sum_rn_alt", "max_ta": "max_ta_alt", "min_ta": "min_ta_alt"})
-    df = df.merge(stations[["stadium", "alt_stn_id"]], on="stadium", how="left", validate="many_to_one")
-    df = df.merge(alt, on=["alt_stn_id", "date"], how="left", validate="many_to_one")
-    has_alt = df["max_ta_alt"].notna()
-    df["rain_alt"] = (df["sum_rn_alt"].fillna(0) >= 1).astype("Int64").where(has_alt)
-    df["hot_alt"] = (df["max_ta_alt"] >= 33).astype("Int64").where(has_alt)
-    df["cold_alt"] = (df["min_ta_alt"] <= 0).astype("Int64").where(has_alt)
+    # 경기 시간대 날씨 (시간자료, 본 분석): 본 관측소와 대체 관측소 각각
+    for stn_col, suffix in [("stn_id", ""), ("alt_stn_id", "_alt")]:
+        w = match_weather(df[["match_id", stn_col, "date", "kickoff_hour"]].rename(columns={stn_col: "stn"}), hourly)
+        df = df.merge(w.add_suffix(suffix).rename(columns={f"match_id{suffix}": "match_id"}),
+                      on="match_id", how="left", validate="one_to_one")
+        ok = df[f"ta_kickoff{suffix}"].notna()
+        df[f"rain{suffix}"] = (df[f"rain_match_mm{suffix}"] >= RAIN_MM).astype("Int64").where(ok)
+        df[f"hot{suffix}"] = (df[f"ta_kickoff{suffix}"] >= HOT_TA).astype("Int64").where(ok)
+        df[f"cold{suffix}"] = (df[f"ta_kickoff{suffix}"] <= COLD_TA).astype("Int64").where(ok)
 
     # 상대팀 인기도: 원정팀이 지난 원정경기들에서 데려온 관중 (경기 전에 알 수 있는 값)
     df["away_fans_missing"] = df["away_fans_pre"].isna().astype(int)
@@ -148,23 +191,28 @@ def main() -> None:
         "derby", "home_opener", "last_home", "final_round",
         "away_fans_pre", "ln_away_fans_pre", "away_fans_missing",
         "kickoff", "kickoff_hour", "night", "round", "tv_terrestrial",
-        "rain_mm", "rain", "max_ta", "min_ta", "hot", "cold", "rain_alt", "hot_alt", "cold_alt",
-        "excluded",
+        "rain_match_mm", "ta_kickoff", "rain", "hot", "cold", "rain_alt", "hot_alt", "cold_alt",
+        "rain_mm", "max_ta", "min_ta", "rain_day", "hot_day", "cold_day",
+        "sellout_proxy", "excluded",
     ]
     out = df[cols]
     out.to_csv(OUT_FILE, index=False, encoding="utf-8-sig")
 
     print(f"저장 완료: {OUT_FILE.relative_to(ROOT)}  ({len(out)}경기, 제외 {out['excluded'].sum()}경기)")
     print("\n[변수별 해당 경기 수]")
-    for c in ["night", "tv_terrestrial", "holiday", "derby", "home_opener", "last_home", "final_round", "home_first_game", "away_first_game",
-              "rain", "hot", "cold", "rain_alt", "hot_alt", "cold_alt", "away_fans_missing"]:
+    for c in ["sellout_proxy", "night", "tv_terrestrial", "holiday", "derby", "home_opener", "last_home", "final_round", "home_first_game", "away_first_game",
+              "rain", "hot", "cold", "rain_alt", "hot_alt", "cold_alt", "rain_day", "hot_day", "cold_day",
+              "away_fans_missing"]:
         print(f"  {c:<16} {out[c].sum():>4}")
     n_kick = out["kickoff"].isna().sum()
     if n_kick:
         print(f"  킥오프 결측 {n_kick}경기 -> python src/collect/kleague_schedule_merge.py 결과를 확인하세요")
     n_missing = out["max_ta"].isna().sum()
     if n_missing:
-        print(f"  날씨 결측 {n_missing}경기 -> python src/collect/fetch_weather.py를 다시 실행하세요")
+        print(f"  일자료 날씨 결측 {n_missing}경기 -> python src/collect/fetch_weather.py를 다시 실행하세요")
+    n_missing = out["ta_kickoff"].isna().sum()
+    if n_missing:
+        print(f"  경기 시간대 날씨 결측 {n_missing}경기 -> python src/collect/fetch_weather_hourly.py를 다시 실행하세요")
     print("\n[요일 유형]")
     print(out["day_type"].value_counts().to_string())
     if INCOMPLETE_SEASONS:

@@ -80,7 +80,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 - 모형 3의 상대팀 인기도는 `ln_away_fans_pre`(+ `away_fans_missing`)로 넣는다.
 - VIF로 다중공선성을 확인한다.
 - 민감도 분석(결과가 기준에 따라 흔들리지 않는지 확인)은 미리 정한 두 가지만 한다.
-  1. 수용률 95% 이상인 매진 경기를 뺀 모형 3
+  1. 매진으로 보이는 경기(`sellout_proxy`=1)를 뺀 모형 3. 경기마다 여는 구역이 달라 판매 좌석 수를 알 수 없으므로, 관중이 경기장·시즌 최다치의 95% 이상에서 5번 이상 멈춘 곳(대구 2023~2025, 포항 2024, 33경기)을 매진으로 본다
   2. 날씨를 대체 관측소 기준(`rain_alt`, `hot_alt`, `cold_alt`)으로 바꾼 모형 3
 - 로그 종속변수에서 더미 계수 b는 `(e^b − 1) × 100%`로 해석해 설명한다.
 
@@ -119,6 +119,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 | `home_opener`, `last_home` | 홈팀의 시즌 첫·마지막 홈경기 |
 | `home_first_game`, `away_first_game` | 그 팀의 시즌 첫 경기면 1. 이때 순위·form은 0으로 채워져 있으니 **반드시 이 더미와 함께 모형에 넣는다** |
 | `excluded` | 제외 경기면 1. 모형에서는 `excluded == 0`만 쓴다 |
+| `sellout_proxy` | 매진으로 보이는 경기면 1. 관중 수로 만든 기준이라 **민감도 분석 1에서 빼는 용도로만** 쓴다 |
 | `rain_mm`, `rain` | 경기장 근처 ASOS 관측소 일강수량, 1mm 이상이면 `rain`=1 (**모형에는 `rain`**) |
 | `max_ta`, `min_ta`, `hot`, `cold` | 일 최고·최저기온. `hot`=최고 33℃ 이상(폭염 기준), `cold`=최저 0℃ 이하 |
 | `kickoff`, `kickoff_hour`, `night` | 킥오프 시각, 18시 이후 시작이면 `night`=1. 평일 경기는 모두 저녁이라 `night`는 주말·공휴일 안에서의 저녁 vs 낮 차이를 잡는다 |
