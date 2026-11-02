@@ -139,7 +139,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 3. ~~날씨 변수 `rain`, `hot`, `cold` 생성~~ (완료: 경기 시간대 `src/collect/fetch_weather_hourly.py`, 하루 기준 `src/collect/fetch_weather.py`, 대응표 `data/external/stadium_station.csv`)
 4. ~~기술통계와 모형 1~3 노트북 작성~~ (완료: `notebooks/01_descriptive.ipynb`, `notebooks/02_models.ipynb`, 결과 `reports/`)
    - 노트북 커널은 `Python (kleague .venv)`를 쓴다. (`python -m ipykernel install --user --name kleague`로 등록)
-5. 수원 삼성 사례 분석 (`notebooks/03_suwon_case.ipynb`). 관점: '강등해도 관중을 지키는 구단은 무엇이 다른가' (K리그 구단 전반에 쓸 시사점). 설계 (2026-11-02 확정, 결과 보기 전):
+5. ~~수원 삼성 사례 분석~~ (완료: `notebooks/03_suwon_case.ipynb`, 그림 `reports/figures/05~06`). 관점: '강등해도 관중을 지키는 구단은 무엇이 다른가' (K리그 구단 전반에 쓸 시사점). 설계 (2026-11-02 확정, 결과 보기 전):
    1. 리그가 바뀐 구단 8곳(강등 4: 수원 2024·인천 2025·대구 2026·수원FC 2026 / 승격 4: 김천 2024·안양 2025·부천 2026·인천 2026)의 바뀌기 전 시즌 대비 바뀐 시즌 평균 관중 변화(%). 기준선은 같은 두 시즌 동안 리그가 바뀌지 않은 구단들의 변화 중앙값
    2. 전체 구단 모형 3 + `home_form5 × K리그2`: K리그2에서 홈팀 성적과 관중의 관계가 다른가
    3. 수원 홈경기만(64경기) 모형: 요일 유형·야간·비·더위·추위·`home_form5`·`home_form5 × K리그2`·`home_rank_pre`·`ln_away_fans_pre`(+missing)·더비·첫·마지막 홈경기·시즌 더미, HC3 강건 표준오차. 표본이 작아 탐색적 결과로만 해석
