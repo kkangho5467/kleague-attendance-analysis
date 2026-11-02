@@ -30,6 +30,13 @@
                      그 팀의 시즌 첫 경기면 1. 이때 순위·form은 0으로 채운다.
                      0은 실제 값이 아니므로 반드시 이 더미와 함께 모형에 넣는다.
 - excluded           제외 경기 목록에 있으면 1
+- rain_mm            경기장 근처 ASOS 관측소 일강수량 (빈칸 = 비 안 옴 = 0)
+- rain               일강수량 1mm 이상이면 1
+- max_ta, min_ta     일 최고·최저기온
+- hot                일 최고기온 33℃ 이상이면 1 (기상청 폭염 기준)
+- cold               일 최저기온 0℃ 이하면 1 (영하)
+  날씨 입력: data/raw/weather/asos_daily.csv (src/collect/fetch_weather.py가 만듦),
+            data/external/stadium_station.csv
 """
 
 from pathlib import Path
@@ -61,6 +68,8 @@ def main() -> None:
     holidays = read(EXT / "holidays.csv", parse_dates=["date"])
     derbies = read(EXT / "derby_list.csv")
     excluded = read(EXT / "excluded_matches.csv")
+    stations = read(EXT / "stadium_station.csv")
+    weather = read(ROOT / "data" / "raw" / "weather" / "asos_daily.csv", parse_dates=["date"])
 
     df = df.merge(form, on="match_id", how="left", validate="one_to_one")
     df["ln_attendance"] = np.log(df["attendance"])
@@ -89,21 +98,36 @@ def main() -> None:
 
     df["excluded"] = df["match_id"].isin(excluded["match_id"]).astype(int)
 
+    # 날씨: 경기장 → 관측소 → 그날 자료. 아직 받지 못한 날은 결측으로 남는다.
+    df = df.merge(stations[["stadium", "stn_id"]], on="stadium", how="left", validate="many_to_one")
+    df = df.merge(weather[["stn_id", "date", "sum_rn", "max_ta", "min_ta"]],
+                  on=["stn_id", "date"], how="left", validate="many_to_one")
+    has_weather = df["max_ta"].notna()
+    df["rain_mm"] = df["sum_rn"].where(~has_weather, df["sum_rn"].fillna(0))
+    df["rain"] = (df["rain_mm"] >= 1).astype("Int64").where(has_weather)
+    df["hot"] = (df["max_ta"] >= 33).astype("Int64").where(has_weather)
+    df["cold"] = (df["min_ta"] <= 0).astype("Int64").where(has_weather)
+
     cols = [
         "match_id", "season", "league", "date", "month", "weekday", "weekend", "holiday", "day_type",
         "home_team", "away_team", "stadium",
         "attendance", "ln_attendance",
         "home_rank_pre", "away_rank_pre", "home_form5", "away_form5",
         "home_first_game", "away_first_game", "home_games_pre", "away_games_pre",
-        "derby", "home_opener", "last_home", "final_round", "excluded",
+        "derby", "home_opener", "last_home", "final_round",
+        "rain_mm", "rain", "max_ta", "min_ta", "hot", "cold", "excluded",
     ]
     out = df[cols]
     out.to_csv(OUT_FILE, index=False, encoding="utf-8-sig")
 
     print(f"저장 완료: {OUT_FILE.relative_to(ROOT)}  ({len(out)}경기, 제외 {out['excluded'].sum()}경기)")
     print("\n[변수별 해당 경기 수]")
-    for c in ["holiday", "derby", "home_opener", "last_home", "final_round", "home_first_game", "away_first_game"]:
+    for c in ["holiday", "derby", "home_opener", "last_home", "final_round", "home_first_game", "away_first_game",
+              "rain", "hot", "cold"]:
         print(f"  {c:<16} {out[c].sum():>4}")
+    n_missing = out["max_ta"].isna().sum()
+    if n_missing:
+        print(f"  날씨 결측 {n_missing}경기 -> python src/collect/fetch_weather.py를 다시 실행하세요")
     print("\n[요일 유형]")
     print(out["day_type"].value_counts().to_string())
     if INCOMPLETE_SEASONS:

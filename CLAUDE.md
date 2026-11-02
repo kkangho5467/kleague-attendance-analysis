@@ -41,6 +41,7 @@ docs/                  연구 설계 문서
 pip install -r requirements.txt
 python src/collect/kleague_attendance_merge.py   # raw 표 → data/processed/attendance_clean.csv
 python src/collect/build_excluded_matches.py     # home_stadiums.csv 기준 → data/external/excluded_matches.csv
+python src/collect/fetch_weather.py              # 기상청 ASOS API → data/raw/weather/asos_daily.csv (새 날짜만)
 python src/features/team_form.py                 # 경기 직전 순위·form → data/processed/team_form.csv
 python src/features/build_features.py            # 모두 합친 분석용 데이터 → data/processed/features.csv
 ```
@@ -55,6 +56,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 ### 데이터 수집
 - **K리그 사이트(kleague.com)를 자동으로 크롤링하는 코드는 만들지 않는다.** robots.txt로 자동 접근을 막고 있다. 원본 표는 사용자가 직접 복사하고, 코드는 정리만 한다.
 - 자동화가 필요한 외부 데이터는 공식 API가 있는 것만 쓴다. (예: 기상청 API, 공공데이터포털 특일 정보)
+- API 키는 `.env`의 `KMA_API_KEY`에 둔다. `.env`는 커밋하지 않고, 키 값을 출력하거나 코드에 적지 않는다.
 - `data/raw/`와 `data/processed/`의 데이터 파일은 커밋하지 않는다. `.gitignore`가 막고 있으니 우회하지 말 것.
 
 ### 분석 설계 (편향 방지)
@@ -109,12 +111,14 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 | `home_opener`, `last_home` | 홈팀의 시즌 첫·마지막 홈경기 |
 | `home_first_game`, `away_first_game` | 그 팀의 시즌 첫 경기면 1. 이때 순위·form은 0으로 채워져 있으니 **반드시 이 더미와 함께 모형에 넣는다** |
 | `excluded` | 제외 경기면 1. 모형에서는 `excluded == 0`만 쓴다 |
+| `rain_mm`, `rain` | 경기장 근처 ASOS 관측소 일강수량, 1mm 이상이면 `rain`=1 (**모형에는 `rain`**) |
+| `max_ta`, `min_ta`, `hot`, `cold` | 일 최고·최저기온. `hot`=최고 33℃ 이상(폭염 기준), `cold`=최저 0℃ 이하 |
 
 ## 다음 할 일 (1단계)
 
 1. ~~`home_rank_pre`, `home_form5`, `away_rank_pre` 계산~~ (완료: `src/features/team_form.py`)
 2. ~~`holiday`, `derby`, `home_opener`, `last_home` 변수 생성~~ (완료: `src/features/build_features.py`)
-3. 기상청 ASOS 일자료와 경기장-관측소 대응표로 `rain_mm`, `temp_extreme` 생성
+3. ~~날씨 변수 `rain`, `hot`, `cold` 생성~~ (완료: `src/collect/fetch_weather.py`, 대응표 `data/external/stadium_station.csv`)
 4. `notebooks/`에 기술통계와 모형 1~3 노트북 작성
 5. 수원 삼성 사례 분석: `home_form5 × K리그2` 상호작용
 
