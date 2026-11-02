@@ -40,6 +40,7 @@ docs/                  연구 설계 문서
 ```bash
 pip install -r requirements.txt
 python src/collect/kleague_attendance_merge.py   # raw 표 → data/processed/attendance_clean.csv
+python src/collect/build_excluded_matches.py     # home_stadiums.csv 기준 → data/external/excluded_matches.csv
 ```
 
 - 작업 환경은 Windows다. 경로는 `pathlib`로 다루고, 스크립트 경로는 `Path(__file__).resolve().parents[...]`로 프로젝트 최상위를 잡는다.
@@ -55,6 +56,8 @@ python src/collect/kleague_attendance_merge.py   # raw 표 → data/processed/at
 ### 분석 설계 (편향 방지)
 - 순위와 최근 성적 변수는 **경기 직전 값**만 쓴다. 그 경기 결과가 반영된 값을 쓰면 관중이 알 수 없던 정보가 들어간다.
 - 더비 목록(`derby_list.csv`)과 제외 경기 목록은 **결과를 보기 전에** 정한다. 분석 결과를 보고 이 파일들을 고치자고 제안하지 않는다.
+  - 더비: `tier` 1(위키백과 단독 문서가 있는 더비 10쌍)만 `derby`로 쓴다. tier 2는 검토 기록일 뿐 분석에 쓰지 않는다.
+  - 제외: 정규 홈구장이 아닌 곳(공사로 빌린 구장, 중립 구장)에서 열린 홈경기. 자세한 기준은 `data/external/README.md`
 - 분석 범위는 2023~2026시즌, 정규 라운드다. 2020~2022년은 코로나 영향으로 제외한다. 2017년 이전은 유료 관중 집계 전이라 비교하지 않는다.
 - 결과는 인과가 아니라 연관성으로 표현한다. ("~일수록 관중이 많았다")
 

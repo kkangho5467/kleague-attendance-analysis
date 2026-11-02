@@ -113,8 +113,9 @@ def rows_to_frame(rows: list[list[str]], name: str) -> pd.DataFrame:
 
 
 def load_all(raw_dir: Path) -> pd.DataFrame:
+    # 하위 폴더(K1/, K2/ 등)까지 모두 읽는다
     files = sorted(
-        p for p in raw_dir.glob("*")
+        p for p in raw_dir.rglob("*")
         if p.suffix.lower() in {".txt", ".csv", ".tsv", ".xlsx", ".xls"}
     )
     if not files:
@@ -124,7 +125,9 @@ def load_all(raw_dir: Path) -> pd.DataFrame:
     for p in files:
         try:
             df = read_excel_table(p) if p.suffix.lower() in {".xlsx", ".xls"} else read_text_table(p)
-            print(f"  읽음  {p.name:<30} {len(df):>4}행")
+            # K1/2023.txt와 K2/2023.txt를 구분하려고 폴더까지 포함한 이름을 남긴다
+            df["source_file"] = p.relative_to(raw_dir).as_posix()
+            print(f"  읽음  {df['source_file'].iat[0]:<30} {len(df):>4}행")
             frames.append(df)
         except ValueError as e:
             print(f"  건너뜀 {e}")
@@ -162,7 +165,7 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     out.loc[out["home_goals"] < out["away_goals"], "home_result"] = "L"
 
     # 요일·주말 (공휴일은 사이트 '비고'에 표시되지 않으므로 별도 목록으로 나중에 붙인다)
-    out["weekday"] = out["date"].dt.dayofweek          # 0=월 ... 6=일
+    out["weekday"] = out["date"].dt.day_of_week         # 0=월 ... 6=일
     out["weekend"] = (out["weekday"] >= 5).astype("Int64")
     out["month"] = out["date"].dt.month
 

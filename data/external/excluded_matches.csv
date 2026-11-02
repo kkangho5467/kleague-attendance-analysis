@@ -1,1 +1,15 @@
-match_id,reason,source
+﻿match_id,reason,source
+20230514_경남_성남,비정규 홈구장: 양산 종합 운동장,data/external/README.md 제외 경기 기준
+20230521_경남_부산,비정규 홈구장: 양산 종합 운동장,data/external/README.md 제외 경기 기준
+20240812_수원_안양,비정규 홈구장: 용인 미르스타디움,data/external/README.md 제외 경기 기준
+20240818_수원_전남,비정규 홈구장: 용인 미르스타디움,data/external/README.md 제외 경기 기준
+20240914_수원_천안,비정규 홈구장: 용인 미르스타디움,data/external/README.md 제외 경기 기준
+20240925_수원_부산,비정규 홈구장: 용인 미르스타디움,data/external/README.md 제외 경기 기준
+20241006_수원_안양,비정규 홈구장: 용인 미르스타디움,data/external/README.md 제외 경기 기준
+20241030_수원_충남아산,비정규 홈구장: 용인 미르스타디움,data/external/README.md 제외 경기 기준
+20241101_울산_강원,비정규 홈구장: 울산 종합 운동장,data/external/README.md 제외 경기 기준
+20241103_수원_안산,비정규 홈구장: 용인 미르스타디움,data/external/README.md 제외 경기 기준
+20250927_전남_부천,비정규 홈구장: 순천 팔마 운동장,data/external/README.md 제외 경기 기준
+20260909_포항_김천,비정규 홈구장: 상주 시민 운동장,data/external/README.md 제외 경기 기준
+20260920_포항_서울,비정규 홈구장: 상주 시민 운동장,data/external/README.md 제외 경기 기준
+20261024_전남_대구,비정규 홈구장: 순천 팔마 운동장,data/external/README.md 제외 경기 기준
