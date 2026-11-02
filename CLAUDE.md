@@ -73,7 +73,11 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 - 구단 고정효과와 시즌 고정효과를 넣은 OLS를 쓴다. (`statsmodels`)
 - 표준오차는 구단별 군집 표준오차다.
 - 모형은 단계적으로 쌓는다. 모형 1은 일정·날씨, 모형 2는 여기에 경기력, 모형 3은 여기에 상대팀·특별 경기를 더한다.
-- VIF로 다중공선성을 확인하고, 수용률 95% 이상인 매진 경기를 뺀 민감도 분석을 한다.
+- 모형 3의 상대팀 인기도는 `ln_away_fans_pre`(+ `away_fans_missing`)로 넣는다.
+- VIF로 다중공선성을 확인한다.
+- 민감도 분석(결과가 기준에 따라 흔들리지 않는지 확인)은 미리 정한 두 가지만 한다.
+  1. 수용률 95% 이상인 매진 경기를 뺀 모형 3
+  2. 날씨를 대체 관측소 기준(`rain_alt`, `hot_alt`, `cold_alt`)으로 바꾼 모형 3
 - 로그 종속변수에서 더미 계수 b는 `(e^b − 1) × 100%`로 해석해 설명한다.
 
 ## 데이터 사전 (`data/processed/attendance_clean.csv`)
@@ -85,7 +89,7 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 | `date`, `weekday`, `weekend`, `month` | 날짜, 요일(0=월), 주말 여부, 월 |
 | `home_team`, `away_team`, `stadium` | 관중 현황 표기 그대로 (예: 수원, 수원FC, 서울) |
 | `attendance` | 관중 수 (종속변수) |
-| `away_fans_raw` | 사이트 '원정팀' 열. 원정 관중 수로 보이나 **연맹 확인 전에는 분석에 쓰지 않는다** |
+| `away_fans_raw` | 사이트 '원정팀' 열 = 원정 관중 수 (사용자 확인, 2026-11-02). 그 경기 관중의 일부이므로 **설명변수로 직접 쓰지 않는다**. 경기 전 값 `away_fans_pre`로만 쓴다 |
 | `home_goals`, `away_goals`, `home_result` | 득점, 홈팀 기준 W/D/L |
 | `note` | 사이트 '비고' 열. 주말만 표시하고 공휴일은 표시하지 않는다 |
 
@@ -113,6 +117,9 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 | `excluded` | 제외 경기면 1. 모형에서는 `excluded == 0`만 쓴다 |
 | `rain_mm`, `rain` | 경기장 근처 ASOS 관측소 일강수량, 1mm 이상이면 `rain`=1 (**모형에는 `rain`**) |
 | `max_ta`, `min_ta`, `hot`, `cold` | 일 최고·최저기온. `hot`=최고 33℃ 이상(폭염 기준), `cold`=최저 0℃ 이하 |
+| `rain_alt`, `hot_alt`, `cold_alt` | 대체 관측소(`stadium_station.csv`의 `alt_stn_id`) 기준 날씨. 민감도 분석에만 쓴다 |
+| `away_fans_pre` | 원정팀의 직전 최대 5번 원정경기 평균 원정 관중. 시즌을 넘어 이어서 센다 |
+| `ln_away_fans_pre`, `away_fans_missing` | log(1 + `away_fans_pre`). 데이터상 첫 원정경기는 0으로 채우고 `away_fans_missing`=1 (**반드시 함께 넣는다**) |
 
 ## 다음 할 일 (1단계)
 

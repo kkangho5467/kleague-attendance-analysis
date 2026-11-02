@@ -16,6 +16,8 @@
     home_form5, away_form5         직전 최대 5경기의 경기당 평균 승점 (0~3)
     home_games_pre, away_games_pre 그 시즌 직전까지 치른 경기 수
     final_round                    K리그1 34~38라운드(파이널 라운드)면 1
+    away_fans_pre                  원정팀의 직전 최대 5번 원정경기 평균 원정 관중 수
+                                   (상대팀 인기도. 시즌을 넘어 이어서 센다. 데이터상 첫 원정경기는 결측)
 
 규칙
 - 같은 날 열린 다른 경기 결과는 쓰지 않는다. 관중이 경기장에 올 때 알 수 없던 정보이기 때문이다.
@@ -100,6 +102,16 @@ def form_before_each_match(long: pd.DataFrame) -> pd.DataFrame:
     return long[["match_id", "team", "form5", "games_pre"]]
 
 
+def away_fans_before_each_match(df: pd.DataFrame) -> pd.DataFrame:
+    """원정팀이 직전 원정경기들에서 데려온 원정 관중 평균.
+    그 경기의 원정 관중은 관중 수의 일부라 그대로 쓰면 결과로 결과를 설명하게 된다.
+    그래서 경기 전에 알 수 있는 '지난 원정경기들'의 값만 쓴다."""
+    a = df[["match_id", "away_team", "date", "away_fans_raw"]].sort_values(["away_team", "date"])
+    a["away_fans_pre"] = a.groupby("away_team")["away_fans_raw"].transform(
+        lambda s: s.shift(1).rolling(FORM_N, min_periods=1).mean())
+    return a[["match_id", "away_fans_pre"]]
+
+
 def main() -> None:
     df = pd.read_csv(IN_FILE, encoding="utf-8-sig", parse_dates=["date"])
     long = to_long(df)
@@ -120,14 +132,16 @@ def main() -> None:
     for side in ["home", "away"]:
         out.loc[out[f"{side}_games_pre"] == 0, f"{side}_rank_pre"] = pd.NA
 
-    out["final_round"] =((out["league"] == "K리그1") & (out["home_games_pre"] >= SPLIT_AFTER)).astype(int)
+    out["final_round"] = ((out["league"] == "K리그1") & (out["home_games_pre"] >= SPLIT_AFTER)).astype(int)
+    out = out.merge(away_fans_before_each_match(df), on="match_id", how="left", validate="one_to_one")
+    out["away_fans_pre"] = out["away_fans_pre"].round(1)
     for c in ["home_rank_pre", "away_rank_pre"]:
         out[c] = out[c].astype("Int64")
     out["home_form5"] = out["home_form5"].round(3)
     out["away_form5"] = out["away_form5"].round(3)
 
     cols = ["match_id", "home_rank_pre", "away_rank_pre", "home_form5", "away_form5",
-            "home_games_pre", "away_games_pre", "final_round"]
+            "home_games_pre", "away_games_pre", "final_round", "away_fans_pre"]
     out[cols].to_csv(OUT_FILE, index=False, encoding="utf-8-sig")
 
     print(f"저장 완료: {OUT_FILE.relative_to(ROOT)}  ({len(out)}경기)")

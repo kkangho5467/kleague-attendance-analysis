@@ -12,7 +12,7 @@
 
 입력
 - data/processed/attendance_clean.csv : 경기 날짜와 경기장
-- data/external/stadium_station.csv   : 경기장 → ASOS 관측소 대응표
+- data/external/stadium_station.csv   : 경기장 → ASOS 관측소 대응표 (본 분석 stn_id, 민감도 분석 alt_stn_id)
 
 출력
 - data/raw/weather/asos_daily.csv : 관측소·날짜별 기온·강수량 (받은 자료를 쌓아 두는 파일)
@@ -83,7 +83,12 @@ def main() -> None:
     if unknown:
         sys.exit(f"stadium_station.csv에 없는 경기장: {unknown}\n대응표에 관측소를 먼저 추가해 주세요.")
 
-    need = matches.merge(stations[["stadium", "stn_id"]], on="stadium")[["stn_id", "date"]].drop_duplicates()
+    # 본 분석 관측소(stn_id)와 민감도 분석용 대체 관측소(alt_stn_id)를 모두 받는다
+    pairs = pd.concat([
+        stations[["stadium", "stn_id"]],
+        stations[["stadium", "alt_stn_id"]].rename(columns={"alt_stn_id": "stn_id"}),
+    ]).drop_duplicates()
+    need = matches.merge(pairs, on="stadium")[["stn_id", "date"]].drop_duplicates()
     yesterday = pd.Timestamp.today().normalize() - pd.Timedelta(days=1)
     need = need[need["date"] <= yesterday]
 
@@ -115,7 +120,10 @@ def main() -> None:
         new[c] = pd.to_numeric(new[c], errors="coerce")   # 빈칸 = 비 안 옴 또는 결측
 
     # 대응표의 관측소 이름과 API가 돌려준 이름이 같은지 확인 (관측소 번호 오타 방지)
-    expect = stations.drop_duplicates("stn_id").set_index("stn_id")["stn_name"]
+    expect = pd.concat([
+        stations[["stn_id", "stn_name"]],
+        stations[["alt_stn_id", "alt_stn_name"]].set_axis(["stn_id", "stn_name"], axis=1),
+    ]).drop_duplicates("stn_id").set_index("stn_id")["stn_name"]
     got = new.drop_duplicates("stn_id").set_index("stn_id")["stn_name"]
     wrong = [(i, expect[i], got[i]) for i in got.index if expect.get(i) != got[i]]
     if wrong:

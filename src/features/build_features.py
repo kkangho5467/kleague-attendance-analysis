@@ -35,6 +35,11 @@
 - max_ta, min_ta     일 최고·최저기온
 - hot                일 최고기온 33℃ 이상이면 1 (기상청 폭염 기준)
 - cold               일 최저기온 0℃ 이하면 1 (영하)
+- rain_alt, hot_alt, cold_alt
+                     대체 관측소(alt_stn_id) 기준 같은 변수. 모형 3 민감도 분석용
+- ln_away_fans_pre   log(1 + 원정팀의 직전 5번 원정경기 평균 원정 관중). 상대팀 인기도
+- away_fans_missing  원정팀의 데이터상 첫 원정경기면 1. 이때 ln_away_fans_pre는 0으로 채운다.
+                     (first_game 더미처럼 반드시 함께 모형에 넣는다)
   날씨 입력: data/raw/weather/asos_daily.csv (src/collect/fetch_weather.py가 만듦),
             data/external/stadium_station.csv
 """
@@ -108,6 +113,20 @@ def main() -> None:
     df["hot"] = (df["max_ta"] >= 33).astype("Int64").where(has_weather)
     df["cold"] = (df["min_ta"] <= 0).astype("Int64").where(has_weather)
 
+    # 민감도 분석용: 대체 관측소 기준 날씨
+    alt = weather[["stn_id", "date", "sum_rn", "max_ta", "min_ta"]].rename(
+        columns={"stn_id": "alt_stn_id", "sum_rn": "sum_rn_alt", "max_ta": "max_ta_alt", "min_ta": "min_ta_alt"})
+    df = df.merge(stations[["stadium", "alt_stn_id"]], on="stadium", how="left", validate="many_to_one")
+    df = df.merge(alt, on=["alt_stn_id", "date"], how="left", validate="many_to_one")
+    has_alt = df["max_ta_alt"].notna()
+    df["rain_alt"] = (df["sum_rn_alt"].fillna(0) >= 1).astype("Int64").where(has_alt)
+    df["hot_alt"] = (df["max_ta_alt"] >= 33).astype("Int64").where(has_alt)
+    df["cold_alt"] = (df["min_ta_alt"] <= 0).astype("Int64").where(has_alt)
+
+    # 상대팀 인기도: 원정팀이 지난 원정경기들에서 데려온 관중 (경기 전에 알 수 있는 값)
+    df["away_fans_missing"] = df["away_fans_pre"].isna().astype(int)
+    df["ln_away_fans_pre"] = np.log1p(df["away_fans_pre"]).fillna(0).round(4)
+
     cols = [
         "match_id", "season", "league", "date", "month", "weekday", "weekend", "holiday", "day_type",
         "home_team", "away_team", "stadium",
@@ -115,7 +134,9 @@ def main() -> None:
         "home_rank_pre", "away_rank_pre", "home_form5", "away_form5",
         "home_first_game", "away_first_game", "home_games_pre", "away_games_pre",
         "derby", "home_opener", "last_home", "final_round",
-        "rain_mm", "rain", "max_ta", "min_ta", "hot", "cold", "excluded",
+        "away_fans_pre", "ln_away_fans_pre", "away_fans_missing",
+        "rain_mm", "rain", "max_ta", "min_ta", "hot", "cold", "rain_alt", "hot_alt", "cold_alt",
+        "excluded",
     ]
     out = df[cols]
     out.to_csv(OUT_FILE, index=False, encoding="utf-8-sig")
@@ -123,7 +144,7 @@ def main() -> None:
     print(f"저장 완료: {OUT_FILE.relative_to(ROOT)}  ({len(out)}경기, 제외 {out['excluded'].sum()}경기)")
     print("\n[변수별 해당 경기 수]")
     for c in ["holiday", "derby", "home_opener", "last_home", "final_round", "home_first_game", "away_first_game",
-              "rain", "hot", "cold"]:
+              "rain", "hot", "cold", "rain_alt", "hot_alt", "cold_alt", "away_fans_missing"]:
         print(f"  {c:<16} {out[c].sum():>4}")
     n_missing = out["max_ta"].isna().sum()
     if n_missing:
