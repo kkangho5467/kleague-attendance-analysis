@@ -135,6 +135,8 @@ python src/features/build_features.py            # 모두 합친 분석용 데�
 
 ## 다음 할 일 (1단계)
 
+1단계 분석 항목은 모두 끝났다. 이후 작업 목록과 우선순위는 `docs/roadmap.md`를 본다.
+
 1. ~~`home_rank_pre`, `home_form5`, `away_rank_pre` 계산~~ (완료: `src/features/team_form.py`)
 2. ~~`holiday`, `derby`, `home_opener`, `last_home` 변수 생성~~ (완료: `src/features/build_features.py`)
 3. ~~날씨 변수 `rain`, `hot`, `cold` 생성~~ (완료: 경기 시간대 `src/collect/fetch_weather_hourly.py`, 하루 기준 `src/collect/fetch_weather.py`, 대응표 `data/external/stadium_station.csv`)
