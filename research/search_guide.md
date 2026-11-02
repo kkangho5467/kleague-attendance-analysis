@@ -1,6 +1,6 @@
 # 자료 검색 가이드: 전략 모델별 논문·연구자료 찾는 곳과 검색어
 
-[docs/strategy_models.md](../docs/strategy_models.md)의 세 모델(1. 인프라·대중성, 2. 디지털 멤버십·락인, 4. 로컬리즘)의 근거 자료를 찾기 위한 가이드입니다. (2026-11-02 작성)
+[docs/strategy_models.md](../docs/strategy_models.md)의 6대 모델(1. 인프라·대중성, 2. 디지털 멤버십·락인, 3. 스타 마케팅, 4. 전술 아이덴티티, 5. 헤리티지, 6. 로컬리즘·CSR)의 근거 자료를 찾기 위한 가이드입니다. (2026-11-02 작성, 6대 모델로 개정)
 
 - 찾은 자료는 `research/papers/` 또는 `research/cases/`에 정리하고, [research/README.md](README.md) 목록에 한 줄 추가합니다.
 - 아래 '먼저 볼 만한 문헌'은 제가 알고 있는 대표 연구를 후보로 적은 것입니다. **서지 정보(저자·연도·학술지)를 직접 확인한 뒤 쓰세요.**
@@ -66,7 +66,7 @@
 - Clapp & Hakes (2005), 새 경기장이 MLB 관중에 주는 효과가 얼마나 오래가는가('honeymoon effect')
 - 관중 수요 연구 정리: Borland & Macdonald (2003), 스포츠 관중 수요 연구 리뷰 — Oxford Review of Economic Policy
 
-### 모델 2. 디지털 멤버십 및 콘텐츠 락인 (기업구단)
+### 모델 2. 디지털 멤버십 및 콘텐츠 락인
 
 **찾는 것:** 멤버십·시즌권 유지, 재방문, 앱·디지털 팬 관계, 고객 생애 가치
 
@@ -82,9 +82,54 @@
 - McDonald & Stavros (2007), 시즌권을 끊은 관중의 이탈 원인 분석 — Sport Marketing Quarterly
 - Bauer, Stokburger-Sauer & Exler (2008), 브랜드 이미지와 팬 충성도 — Journal of Sport Management
 
-### 모델 4. 로컬리즘 중심의 지역 정체성 리브랜딩
+### 모델 3. 가성비 스타 마케팅 및 서포터즈 연대
 
-**찾는 것:** 지역 애착, 팀 동일시, 지역 밀착 활동, 시민구단의 지역 관계, 리브랜딩
+**찾는 것:** 스타 선수 영입이 관중·굿즈 매출에 주는 효과, 스타 효과가 얼마나 오래가는지, 스타 팬덤을 구단 팬덤으로 옮긴 사례
+
+| 주제 | 한국어 | 영어 | 일본어 |
+| --- | --- | --- | --- |
+| 스타 효과 | 스타 선수 관중 효과, 스타 파워 프로스포츠 | "superstar effect" attendance, "star player" attendance demand | スター選手 観客動員 |
+| 특정 영입 사례 | 린가드 FC서울 관중, 린가드 효과 | "Messi effect" MLS attendance, "Beckham effect" MLS | イニエスタ 効果 観客 |
+| 굿즈·매출 | 유니폼 판매 스타 선수, 구단 MD 매출 | "merchandise sales" star player, "jersey sales" | グッズ 売上 選手 |
+| 팬덤 전환 | 선수 팬덤 구단 충성도 전환 | "athlete brand" team loyalty, "player identification" | 選手 ファン チーム ロイヤルティ |
+
+**먼저 볼 만한 문헌 (후보, 확인 필요)**
+- Jewell (2017), MLS에서 베컴 영입이 원정 관중에 준 효과('Beckham effect') 연구
+- Arai, Ko & Ross (2014), 선수 브랜드 이미지 개념 — Sport Management Review (페르세바야 논문 참고문헌에도 있음)
+
+### 모델 4. 전술적 아이덴티티 및 스토리텔링
+
+**찾는 것:** 경기 스타일·재미(공격 축구, 득점)가 관중에 주는 효과, 감독·선수 스토리가 팬 충성도에 주는 효과
+
+| 주제 | 한국어 | 영어 | 일본어 |
+| --- | --- | --- | --- |
+| 경기 재미 | 공격 축구 관중, 득점과 관중 수요 | "uncertainty of outcome" attendance, "goals" attendance demand, "entertainment value" football | 攻撃的サッカー 観客 |
+| 구단 철학·브랜드 | 구단 철학 브랜드 정체성, 감독 브랜드 | "playing style" brand identity, "club philosophy" | クラブ哲学 ブランド |
+| 스토리텔링 | 스포츠 스토리텔링 팬 관여 | "storytelling" sport fans, "narrative" sport marketing | ストーリーテリング スポーツ |
+| 저예산 구단 | 저예산 구단 성과, 시민구단 경쟁력 | "small market" club success, "underdog" fan support | 低予算 クラブ |
+
+**먼저 볼 만한 문헌 (후보, 확인 필요)**
+- 경기 결과의 불확실성과 관중 수요 연구 정리: Borland & Macdonald (2003)(모델 1에도 있음)
+- 우리 분석의 '홈팀 최근 성적 +1점당 +7%' 결과와 비교할 수 있는 축구 관중 수요 연구
+
+### 모델 5. 역사적 서사 및 헤리티지
+
+**찾는 것:** 연고 이전·해체 뒤 팬이 다시 세운 구단, 팬 소유 구단의 운영과 충성도, 구단 역사·전통 마케팅
+
+| 주제 | 한국어 | 영어 | 일본어 |
+| --- | --- | --- | --- |
+| 팬이 세운 구단 | 부천FC 1995 창단 서포터, 연고 이전 팬 | "phoenix club", "AFC Wimbledon" supporters, "fan-owned" club | サポーター 設立 クラブ |
+| 연고 이전 | 프로축구 연고 이전 팬 반응 | "franchise relocation" fans, "relocation" football supporters | 本拠地移転 サポーター |
+| 팬 소유·참여 | 팬 참여형 구단 운영 | "supporters' trust", "community ownership" football | サポーター 経営参加 |
+| 헤리티지 마케팅 | 스포츠 구단 역사 마케팅, 레트로 유니폼 | "heritage" sport marketing, "nostalgia" sport fans | 歴史 ブランド クラブ |
+
+**먼저 볼 만한 문헌 (후보, 확인 필요)**
+- 잉글랜드 Supporters' Trust(팬 단체의 구단 지분 참여) 관련 연구
+- 부천 FC 1995 창단 과정을 다룬 국내 학위논문·기사 (RISS에서 '부천FC' 검색)
+
+### 모델 6. 생활 밀착형 로컬리즘 및 CSR
+
+**찾는 것:** 지역 애착, 팀 동일시, 지역 밀착 활동, 구단 사회공헌(CSR), 시민구단의 지역 관계, 리브랜딩
 
 | 주제 | 한국어 | 영어 | 일본어 |
 | --- | --- | --- | --- |
@@ -93,6 +138,8 @@
 | 지역 밀착 활동 | 지역 밀착 마케팅, 구단 지역사회 공헌 | "community engagement" sport club, "CSR" football club | 地域密着, ホームタウン活動 |
 | 시민구단 | 시민구단 지역사회, 시민구단 운영 | "community-owned" football club, "fan ownership" | 市民クラブ |
 | 리브랜딩 | 구단 리브랜딩, 엠블럼 변경 팬 반응 | "rebranding" sports team, "brand community" football | クラブ リブランディング |
+| CSR·지역 문제 | 프로스포츠 사회공헌 팬 충성도, 구단 지역사회 활동 | "CSR" fan loyalty, "community programme" football club | 社会貢献 クラブ, シャレン!(Jリーグ社会連携) |
+| 지배구조 | 50+1 규정 팬 참여 | "50+1 rule" Bundesliga, "member-owned" club | 50+1ルール |
 
 **먼저 볼 만한 문헌 (후보, 확인 필요)**
 - Wann & Branscombe (1993), 스포츠 관중 동일시 척도(SSIS)
