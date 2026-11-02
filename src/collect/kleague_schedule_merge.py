@@ -41,12 +41,26 @@ ATTENDANCE = ROOT / "data" / "processed" / "attendance_clean.csv"
 OUT_FILE = ROOT / "data" / "processed" / "schedule_clean.csv"
 
 FULL_DATE = re.compile(r"^(\d{4})\.(\d{1,2})\.(\d{1,2})$")
-PART_DATE = re.compile(r"^(\d{1,2})\.(\d{1,2})$")          # 앞이 잘린 날짜 (예: 5.02)
+# 복사할 때 앞이 잘린 날짜 (예: 5.02, 023.04.01, .04.01): 월·일만 읽고 연도는 파일 안 다른 날짜에서 가져온다
+PART_DATE = re.compile(r"^(?:\d{0,4}\.)?(\d{1,2})\.(\d{2})$")
 ROUND = re.compile(r"^R(\d+)$")
 MATCH = re.compile(r"^(\d{1,2}:\d{2})\t(.+?) (\d+):(\d+) (.+)$")
 CROWD = re.compile(r"^\[관중수 ([\d,]+)\]")
-CHANNEL = re.compile(r"^([A-Z0-9][A-Z0-9 &+]*?)\s*(\t|$)")    # 'JTBC SPORTS\t캐스터:...', 'COUPANGPLAY'
+STREAMING = {"COUPANGPLAY": "COUPANGPLAY", "쿠팡플레이": "COUPANGPLAY"}
 TERRESTRIAL = {"KBS1", "KBS2", "MBC", "SBS"}
+
+
+def channel_of(line: str):
+    """중계 채널 줄이면 채널 이름, 아니면 None.
+    채널 줄은 'JTBC SPORTS\\t캐스터:...'처럼 탭 뒤에 '캐스터'가 오거나, 쿠팡플레이 줄이다.
+    이 규칙 덕분에 페이지 전체를 복사(Ctrl+A)해도 메뉴·하단 안내문이 채널로 잡히지 않는다."""
+    left, _, right = line.partition("\t")
+    name = left.strip()
+    if name in STREAMING:
+        return STREAMING[name]
+    if "\t" in line and name and right.strip().startswith("캐스터"):
+        return name
+    return None
 
 
 def half(name: str) -> str:
@@ -107,12 +121,15 @@ def parse_file(path: Path) -> pd.DataFrame:
             cur["attendance_sched"] = int(m.group(1).replace(",", ""))
         elif s.startswith("해설:") and "\t" in line:
             cur["stadium_short"] = line.split("\t")[-1].strip()
-        elif (m := CHANNEL.match(line)) and m.group(1) not in cur["channels"]:
-            cur["channels"].append(m.group(1).strip())
+        elif (ch := channel_of(line)) and ch not in cur["channels"]:
+            cur["channels"].append(ch)
 
     df = pd.DataFrame(rows)
     if df.empty:
         raise ValueError(f"{path.name}: 경기 줄을 찾지 못함")
+    if df["date"].isna().any():
+        raise ValueError(f"{path.name}: 날짜 줄보다 먼저 나온 경기 {df['date'].isna().sum()}개 "
+                         "(복사할 때 맨 앞 날짜가 빠졌는지 확인)")
     return df
 
 
