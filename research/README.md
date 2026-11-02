@@ -2,12 +2,14 @@
 
 마케팅 제안의 근거가 될 외부 자료(논문, 다른 리그·구단 사례)를 모으는 폴더입니다.
 어떤 자료를 찾는지와 수집 기준은 [docs/benchmark_cases.md](../docs/benchmark_cases.md)에 있습니다.
+전략 모델별로 어디서 어떤 검색어로 찾을지는 [search_guide.md](search_guide.md)에 있습니다.
 
 ## 폴더 구조
 
 ```
 research/
 ├── README.md                 # 이 파일: 수집한 자료 목록
+├── search_guide.md           # 모델별 검색 사이트·검색어
 ├── papers/                   # 논문. 한 편당 폴더 하나 (연도_첫저자_주제)
 │   └── 2022_hidayat_persebaya/
 │       ├── original.pdf      # 원문 (공개 라이선스인 경우만 넣기)
